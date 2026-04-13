@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from django.db.models import Q
 from rest_framework import generics
 from .models import Allergy, Medication, Patient, Visit
 from .permissions import ViewModelPermissions
@@ -15,6 +16,19 @@ class PatientListCreateView(generics.ListCreateAPIView):
     queryset = Patient.objects.all().order_by("-created_at")
     serializer_class = PatientSerializer
     permission_classes = [ViewModelPermissions]
+
+    def get_queryset(self):
+        queryset = Patient.objects.all().order_by("-created_at")
+        search = self.request.query_params.get("search", "").strip()
+
+        if not search:
+            return queryset
+
+        query = Q()
+        for term in search.split():
+            query |= Q(first_name__icontains=term) | Q(last_name__icontains=term)
+
+        return queryset.filter(query).distinct()
 
 
 class PatientDetailView(generics.RetrieveAPIView):

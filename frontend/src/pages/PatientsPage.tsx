@@ -6,12 +6,16 @@ import PatientDetail from "./PatientDetail";
 
 interface PatientsPageProps {
   currentUser: CurrentUser;
-  onLogout: () => void;
+  selectedPatientId: number | null;
+  onSelectPatient: (patientId: number) => void;
 }
 
-export default function PatientsPage({ currentUser, onLogout }: PatientsPageProps) {
+export default function PatientsPage({
+  currentUser,
+  selectedPatientId,
+  onSelectPatient,
+}: PatientsPageProps) {
   const [patients, setPatients] = useState<Patient[]>([]);
-  const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
   const [form, setForm] = useState<Patient>({
     first_name: "",
     last_name: "",
@@ -36,15 +40,6 @@ export default function PatientsPage({ currentUser, onLogout }: PatientsPageProp
 
   return (
     <div style={{ padding: 20 }}>
-      <div style={{ marginBottom: 16 }}>
-        <span>
-          Signed in as {currentUser.username} ({currentUser.roles.join(", ") || "No role"})
-        </span>
-        <button type="button" style={{ marginLeft: 8 }} onClick={onLogout}>
-          Log out
-        </button>
-      </div>
-
       <h2>Patients</h2>
 
       {canCreatePatients ? (
@@ -70,20 +65,24 @@ export default function PatientsPage({ currentUser, onLogout }: PatientsPageProp
       )}
 
       <ul>
-        {patients.map((p) => (
-          <li key={p.id}>
-            {p.first_name} {p.last_name}
-            {p.id && (
-              <button
-                type="button"
-                style={{ marginLeft: 8 }}
-                onClick={() => setSelectedPatientId(p.id ?? null)}
-              >
-                View record
-              </button>
-            )}
-          </li>
-        ))}
+        {patients.map((p) => {
+          const patientId = p.id;
+
+          return (
+            <li key={patientId}>
+              {p.first_name} {p.last_name}
+              {patientId !== undefined && (
+                <button
+                  type="button"
+                  style={{ marginLeft: 8 }}
+                  onClick={() => onSelectPatient(patientId)}
+                >
+                  View record
+                </button>
+              )}
+            </li>
+          );
+        })}
       </ul>
 
       {selectedPatientId ? (

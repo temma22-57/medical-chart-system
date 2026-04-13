@@ -53,6 +53,13 @@ export const getPatients = async (): Promise<Patient[]> => {
   return res.data;
 };
 
+export const searchPatients = async (search: string): Promise<Patient[]> => {
+  const res = await api.get("/patients/", {
+    params: { search },
+  });
+  return res.data;
+};
+
 export const createPatient = async (patient: Patient): Promise<Patient> => {
   const res = await api.post("/patients/", patient);
   return res.data;

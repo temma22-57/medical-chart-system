@@ -99,6 +99,18 @@ class PatientApiTests(APITestCase):
         self.assertEqual(list_response.status_code, status.HTTP_200_OK)
         self.assertEqual(list_response.data[0]["first_name"], "Taylor")
 
+    def test_search_patients_by_first_or_last_name(self):
+        self.client.force_authenticate(user=self.nurse)
+        Patient.objects.create(first_name="Jordan", last_name="Kim")
+        Patient.objects.create(first_name="Morgan", last_name="Smith")
+        Patient.objects.create(first_name="Avery", last_name="Stone")
+
+        response = self.client.get(reverse("patients"), {"search": "smith"})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["last_name"], "Smith")
+
     def test_retrieve_patient_includes_related_record_sections(self):
         self.client.force_authenticate(user=self.nurse)
         patient = Patient.objects.create(first_name="Jordan", last_name="Kim")
