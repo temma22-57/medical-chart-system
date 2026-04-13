@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { getPatients, createPatient} from "../features/patients/patientService";
+import { getPatients, createPatient } from "../features/patients/patientService";
 import type { Patient } from "../features/patients/patientService";
+import PatientDetail from "./PatientDetail";
 
 export default function PatientsPage() {
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
   const [form, setForm] = useState<Patient>({
     first_name: "",
     last_name: "",
@@ -51,9 +53,24 @@ export default function PatientsPage() {
         {patients.map((p) => (
           <li key={p.id}>
             {p.first_name} {p.last_name}
+            {p.id && (
+              <button
+                type="button"
+                style={{ marginLeft: 8 }}
+                onClick={() => setSelectedPatientId(p.id ?? null)}
+              >
+                View record
+              </button>
+            )}
           </li>
         ))}
       </ul>
+
+      {selectedPatientId ? (
+        <PatientDetail patientId={selectedPatientId} />
+      ) : (
+        <p>Select a patient to view visit history, medications, and allergies.</p>
+      )}
     </div>
   );
 }
