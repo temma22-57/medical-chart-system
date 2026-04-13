@@ -1,15 +1,22 @@
 import { useEffect, useState } from "react";
 import { getPatients, createPatient } from "../features/patients/patientService";
+import type { CurrentUser } from "../features/auth/authService";
 import type { Patient } from "../features/patients/patientService";
 import PatientDetail from "./PatientDetail";
 
-export default function PatientsPage() {
+interface PatientsPageProps {
+  currentUser: CurrentUser;
+  onLogout: () => void;
+}
+
+export default function PatientsPage({ currentUser, onLogout }: PatientsPageProps) {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
   const [form, setForm] = useState<Patient>({
     first_name: "",
     last_name: "",
   });
+  const canCreatePatients = currentUser.roles.includes("Doctor");
 
   useEffect(() => {
     loadPatients();
@@ -29,25 +36,38 @@ export default function PatientsPage() {
 
   return (
     <div style={{ padding: 20 }}>
+      <div style={{ marginBottom: 16 }}>
+        <span>
+          Signed in as {currentUser.username} ({currentUser.roles.join(", ") || "No role"})
+        </span>
+        <button type="button" style={{ marginLeft: 8 }} onClick={onLogout}>
+          Log out
+        </button>
+      </div>
+
       <h2>Patients</h2>
 
-      <form onSubmit={handleSubmit}>
-        <input
-          placeholder="First Name"
-          value={form.first_name}
-          onChange={(e) =>
-            setForm({ ...form, first_name: e.target.value })
-          }
-        />
-        <input
-          placeholder="Last Name"
-          value={form.last_name}
-          onChange={(e) =>
-            setForm({ ...form, last_name: e.target.value })
-          }
-        />
-        <button type="submit">Add Patient</button>
-      </form>
+      {canCreatePatients ? (
+        <form onSubmit={handleSubmit}>
+          <input
+            placeholder="First Name"
+            value={form.first_name}
+            onChange={(e) =>
+              setForm({ ...form, first_name: e.target.value })
+            }
+          />
+          <input
+            placeholder="Last Name"
+            value={form.last_name}
+            onChange={(e) =>
+              setForm({ ...form, last_name: e.target.value })
+            }
+          />
+          <button type="submit">Add Patient</button>
+        </form>
+      ) : (
+        <p>Nurse access is read-only for patient records in this prototype.</p>
+      )}
 
       <ul>
         {patients.map((p) => (
