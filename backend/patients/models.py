@@ -1,12 +1,63 @@
 from django.db import models
 
+
 class Patient(models.Model):
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     date_of_birth = models.DateField(null=True, blank=True)
+    phone = models.CharField(max_length=20, blank=True)
+    notes = models.TextField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
+
+
+class Visit(models.Model):
+    patient = models.ForeignKey(Patient, related_name="visits", on_delete=models.CASCADE)
+    visit_date = models.DateField()
+    primary_care_physician = models.CharField(max_length=150)
+    staff_assigned = models.CharField(max_length=150, blank=True)
+    notes = models.TextField()
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-visit_date", "-created_at"]
+
+    def __str__(self):
+        return f"{self.patient} visit on {self.visit_date}"
+
+
+class Medication(models.Model):
+    patient = models.ForeignKey(Patient, related_name="medications", on_delete=models.CASCADE)
+    name = models.CharField(max_length=150)
+    dosage = models.CharField(max_length=100)
+    frequency = models.CharField(max_length=100)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return f"{self.name} for {self.patient}"
+
+
+class Allergy(models.Model):
+    patient = models.ForeignKey(Patient, related_name="allergies", on_delete=models.CASCADE)
+    substance = models.CharField(max_length=150)
+    reaction = models.CharField(max_length=255, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["substance"]
+
+    def __str__(self):
+        return f"{self.substance} allergy for {self.patient}"

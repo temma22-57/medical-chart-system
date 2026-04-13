@@ -1,46 +1,110 @@
-Prerequisite Packages:
-    -git
-    -python3
-    -python3-venv
-    -python3-pip
-    -node
-    -npm
+Medical Chart System
 
-To verify packages:
-    python3 --version
-    python3 -m pip --version
-    python3 -m venv --help
-    node --version
-    npm --version
-    git --version
+Class project for a medical chart database and medical history system.
 
-Recommended first-run command sequence:
-(Terminal 1: Backend)
-    git clone https://github.com/temma22-57/medical-chart-system.git
-    cd medical-chart-system
-    cd backend
-    python3 -m venv .venv
-    source .venv/bin/activate
-    python3 -m pip install --upgrade pip
-    python3 -m pip install django djangorestframework django-cors-headers psycopg2-binary
-    python3 manage.py makemigrations
-    python3 manage.py migrate
-    python3 manage.py runserver
-(Terminal 2: Frontend)
-    cd ~/medical-chart-system/frontend
-    npm install
-    npm install axios
-    npm run dev
-(Browser)
-    http://localhost:5173/
+## Local Development
 
-Re-running after initial setup:
-(Terminal 1: Backend)
-    cd ~/medical-chart-system/backend
-    source .venv/bin/activate
-    python3 manage.py runserver
-(Terminal 2: Frontend) 
-    cd ~/medical-chart-system/frontend
-    npm run dev
-(Browser)
-    http://localhost:5173/
+The local development workflow is:
+
+- PostgreSQL runs in Docker.
+- Django runs on the host in a Python virtual environment.
+- React/Vite runs on the host with npm.
+
+## Prerequisites
+
+- git
+- Docker and Docker Compose
+- python3
+- python3-venv
+- python3-pip
+- node
+- npm
+
+## Environment Setup
+
+Create a local `.env` file from the example:
+
+```bash
+cp .env.example .env
+```
+
+Default local values:
+
+```bash
+DJANGO_SECRET_KEY=django-insecure-local-development-key
+DJANGO_DEBUG=True
+
+DB_NAME=medical_chart
+DB_USER=medical_chart_user
+DB_PASSWORD=medical_chart_password
+DB_HOST=localhost
+DB_PORT=5432
+```
+
+Do not commit `.env`; it is ignored by git.
+
+## First Run
+
+Start PostgreSQL:
+
+```bash
+docker compose up -d db
+```
+
+Set up and run the backend:
+
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install --upgrade pip
+python3 -m pip install -r requirements.txt
+python3 manage.py makemigrations
+python3 manage.py migrate
+python3 manage.py runserver
+```
+
+Set up and run the frontend in another terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open:
+
+```text
+http://localhost:5173/
+```
+
+## Re-running After Initial Setup
+
+Backend terminal:
+
+```bash
+docker compose up -d db
+cd backend
+source .venv/bin/activate
+python3 manage.py migrate
+python3 manage.py runserver
+```
+
+Frontend terminal:
+
+```bash
+cd frontend
+npm run dev
+```
+
+## Database Notes
+
+Django is configured to use PostgreSQL by default through these environment variables:
+
+- `DB_NAME`
+- `DB_USER`
+- `DB_PASSWORD`
+- `DB_HOST`
+- `DB_PORT`
+
+The compose file publishes PostgreSQL to `localhost:5432` by default so the host-run Django server can connect to it.

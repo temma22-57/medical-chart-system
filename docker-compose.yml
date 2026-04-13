@@ -1,26 +1,19 @@
-version: "3.8"
-
 services:
   db:
     image: postgres:15
     environment:
-      POSTGRES_DB: medical
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: ${DB_NAME:-medical_chart}
+      POSTGRES_USER: ${DB_USER:-medical_chart_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-medical_chart_password}
     ports:
-      - "5432:5432"
-
-  backend:
-    build: ./infra/docker/backend
-    command: python manage.py runserver 0.0.0.0:8000
+      - "${DB_PORT:-5432}:5432"
     volumes:
-      - ./backend:/app
-    ports:
-      - "8000:8000"
-    depends_on:
-      - db
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-medical_chart_user} -d ${DB_NAME:-medical_chart}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
-  frontend:
-    build: ./infra/docker/frontend
-    ports:
-      - "5173:5173"
+volumes:
+  postgres_data:
