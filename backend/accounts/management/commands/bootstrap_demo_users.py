@@ -22,6 +22,9 @@ class Command(BaseCommand):
                 "view_allergy",
                 "add_allergy",
                 "change_allergy",
+                "view_vital",
+                "add_vital",
+                "change_vital",
             ],
         )
         nurse_group = self.create_group(
@@ -31,6 +34,7 @@ class Command(BaseCommand):
                 "view_visit",
                 "view_medication",
                 "view_allergy",
+                "view_vital",
             ],
         )
 

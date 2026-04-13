@@ -51,6 +51,26 @@ export default function PatientDetail({ patientId }: PatientDetailProps) {
       <p>Phone: {patient.phone || "Not recorded"}</p>
       {patient.notes && <p>Notes: {patient.notes}</p>}
 
+      <h4>Latest Vitals</h4>
+      {patient.latest_vitals ? (
+        <dl>
+          <dt>Height</dt>
+          <dd>{patient.latest_vitals.height}</dd>
+          <dt>Weight</dt>
+          <dd>{patient.latest_vitals.weight}</dd>
+          <dt>Blood pressure</dt>
+          <dd>{patient.latest_vitals.blood_pressure}</dd>
+          <dt>Heart rate</dt>
+          <dd>{patient.latest_vitals.heart_rate}</dd>
+          <dt>Temperature</dt>
+          <dd>{patient.latest_vitals.temperature}</dd>
+          <dt>Collected</dt>
+          <dd>{new Date(patient.latest_vitals.collected_at).toLocaleString()}</dd>
+        </dl>
+      ) : (
+        <p>No vitals recorded.</p>
+      )}
+
       <h4>Medications</h4>
       {patient.medications.length === 0 ? (
         <p>No medications recorded.</p>
@@ -89,6 +109,16 @@ export default function PatientDetail({ patientId }: PatientDetailProps) {
               {visit.staff_assigned ? `, staff: ${visit.staff_assigned}` : ""}
               <br />
               {visit.notes}
+              {visit.vitals.length > 0 && (
+                <ul>
+                  {visit.vitals.map((vital) => (
+                    <li key={vital.id}>
+                      Vitals: {vital.blood_pressure}, HR {vital.heart_rate}, temp{" "}
+                      {vital.temperature}, height {vital.height}, weight {vital.weight}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </li>
           ))}
         </ul>

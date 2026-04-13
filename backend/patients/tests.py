@@ -4,7 +4,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from .models import Allergy, Medication, Patient, Visit
+from .models import Allergy, Medication, Patient, Visit, Vital
 
 
 def create_user_with_permissions(username, permission_codenames):
@@ -49,6 +49,26 @@ class PatientRelationshipTests(APITestCase):
         self.assertEqual(patient.allergies.count(), 1)
         self.assertEqual(patient.visits.count(), 1)
 
+    def test_visit_has_related_vitals(self):
+        patient = Patient.objects.create(first_name="Avery", last_name="Stone")
+        visit = Visit.objects.create(
+            patient=patient,
+            visit_date="2026-04-12",
+            primary_care_physician="Dr. Patel",
+            notes="Routine follow-up.",
+        )
+        Vital.objects.create(
+            visit=visit,
+            height="68.00",
+            weight="160.50",
+            blood_pressure="120/80",
+            heart_rate=72,
+            temperature="98.60",
+        )
+
+        self.assertEqual(visit.vitals.count(), 1)
+        self.assertEqual(patient.visits.first().vitals.first().blood_pressure, "120/80")
+
 
 class PatientApiTests(APITestCase):
     def setUp(self):
@@ -67,6 +87,9 @@ class PatientApiTests(APITestCase):
                 "view_allergy",
                 "add_allergy",
                 "change_allergy",
+                "view_vital",
+                "add_vital",
+                "change_vital",
             ],
         )
         self.nurse = create_user_with_permissions(
@@ -76,6 +99,7 @@ class PatientApiTests(APITestCase):
                 "view_visit",
                 "view_medication",
                 "view_allergy",
+                "view_vital",
             ],
         )
 
@@ -121,12 +145,21 @@ class PatientApiTests(APITestCase):
             frequency="Daily",
         )
         Allergy.objects.create(patient=patient, substance="Latex", reaction="Hives")
-        Visit.objects.create(
+        visit = Visit.objects.create(
             patient=patient,
             visit_date="2026-04-10",
             primary_care_physician="Dr. Nguyen",
             staff_assigned="MA Carter",
             notes="Blood pressure check.",
+        )
+        Vital.objects.create(
+            visit=visit,
+            height="70.00",
+            weight="180.00",
+            blood_pressure="118/76",
+            heart_rate=68,
+            temperature="98.40",
+            collected_at="2026-04-10T10:00:00Z",
         )
 
         response = self.client.get(reverse("patient-detail", kwargs={"pk": patient.id}))
@@ -136,6 +169,8 @@ class PatientApiTests(APITestCase):
         self.assertEqual(response.data["medications"][0]["name"], "Lisinopril")
         self.assertEqual(response.data["allergies"][0]["substance"], "Latex")
         self.assertEqual(response.data["visits"][0]["primary_care_physician"], "Dr. Nguyen")
+        self.assertEqual(response.data["visits"][0]["vitals"][0]["blood_pressure"], "118/76")
+        self.assertEqual(response.data["latest_vitals"]["heart_rate"], 68)
 
     def test_create_visit_for_patient(self):
         self.client.force_authenticate(user=self.doctor)
@@ -156,6 +191,85 @@ class PatientApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(patient.visits.count(), 1)
         self.assertEqual(response.data["notes"], "Medication review.")
+
+    def test_create_vitals_for_visit(self):
+        self.client.force_authenticate(user=self.doctor)
+        patient = Patient.objects.create(first_name="Casey", last_name="Rivera")
+        visit = Visit.objects.create(
+            patient=patient,
+            visit_date="2026-04-13",
+            primary_care_physician="Dr. Smith",
+            notes="Medication review.",
+        )
+        payload = {
+            "height": "67.50",
+            "weight": "145.25",
+            "blood_pressure": "122/78",
+            "heart_rate": 74,
+            "temperature": "98.70",
+            "collected_at": "2026-04-13T16:30:00Z",
+        }
+
+        response = self.client.post(
+            reverse("visit-vitals", kwargs={"visit_id": visit.id}),
+            payload,
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(visit.vitals.count(), 1)
+        self.assertEqual(response.data["blood_pressure"], "122/78")
+
+    def test_latest_vitals_uses_most_recent_visit_and_collected_time(self):
+        self.client.force_authenticate(user=self.nurse)
+        patient = Patient.objects.create(first_name="Riley", last_name="Brooks")
+        older_visit = Visit.objects.create(
+            patient=patient,
+            visit_date="2026-04-12",
+            primary_care_physician="Dr. Smith",
+            notes="Older visit.",
+        )
+        newer_visit = Visit.objects.create(
+            patient=patient,
+            visit_date="2026-04-13",
+            primary_care_physician="Dr. Smith",
+            notes="Newer visit.",
+        )
+        Vital.objects.create(
+            visit=newer_visit,
+            height="68.00",
+            weight="150.00",
+            blood_pressure="119/79",
+            heart_rate=70,
+            temperature="98.60",
+            collected_at="2026-04-13T09:00:00Z",
+        )
+        Vital.objects.create(
+            visit=older_visit,
+            height="68.00",
+            weight="151.00",
+            blood_pressure="130/85",
+            heart_rate=80,
+            temperature="99.10",
+            collected_at="2026-04-12T14:00:00Z",
+        )
+        latest_same_visit = Vital.objects.create(
+            visit=newer_visit,
+            height="68.00",
+            weight="149.50",
+            blood_pressure="116/74",
+            heart_rate=66,
+            temperature="98.20",
+            collected_at="2026-04-13T11:00:00Z",
+        )
+
+        response = self.client.get(
+            reverse("patient-latest-vitals", kwargs={"patient_id": patient.id})
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["id"], latest_same_visit.id)
+        self.assertEqual(response.data["blood_pressure"], "116/74")
 
     def test_nurse_cannot_create_visit_for_patient(self):
         self.client.force_authenticate(user=self.nurse)

@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 
 
 class Patient(models.Model):
@@ -30,6 +31,24 @@ class Visit(models.Model):
 
     def __str__(self):
         return f"{self.patient} visit on {self.visit_date}"
+
+
+class Vital(models.Model):
+    visit = models.ForeignKey(Visit, related_name="vitals", on_delete=models.CASCADE)
+    height = models.DecimalField(max_digits=5, decimal_places=2)
+    weight = models.DecimalField(max_digits=6, decimal_places=2)
+    blood_pressure = models.CharField(max_length=20)
+    heart_rate = models.PositiveIntegerField()
+    temperature = models.DecimalField(max_digits=5, decimal_places=2)
+    collected_at = models.DateTimeField(default=timezone.now)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-visit__visit_date", "-collected_at", "-id"]
+
+    def __str__(self):
+        return f"Vitals for {self.visit}"
 
 
 class Medication(models.Model):

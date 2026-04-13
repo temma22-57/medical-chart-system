@@ -18,6 +18,21 @@ export interface Visit {
   primary_care_physician: string;
   staff_assigned?: string;
   notes: string;
+  vitals: Vital[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Vital {
+  id: number;
+  visit: number;
+  patient: number;
+  height: string;
+  weight: string;
+  blood_pressure: string;
+  heart_rate: number;
+  temperature: string;
+  collected_at: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -46,6 +61,7 @@ export interface PatientDetail extends Patient {
   medications: Medication[];
   allergies: Allergy[];
   visits: Visit[];
+  latest_vitals: Vital | null;
 }
 
 export const getPatients = async (): Promise<Patient[]> => {

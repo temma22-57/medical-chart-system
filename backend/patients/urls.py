@@ -2,6 +2,7 @@ from django.urls import path
 from .views import (
     PatientAllergyListCreateView,
     PatientDetailView,
+    PatientLatestVitalsView,
     PatientListCreateView,
     PatientMedicationListCreateView,
     PatientVisitListCreateView,
@@ -24,5 +25,10 @@ urlpatterns = [
         "<int:patient_id>/allergies/",
         PatientAllergyListCreateView.as_view(),
         name="patient-allergies",
+    ),
+    path(
+        "<int:patient_id>/latest-vitals/",
+        PatientLatestVitalsView.as_view(),
+        name="patient-latest-vitals",
     ),
 ]

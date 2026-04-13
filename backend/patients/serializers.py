@@ -1,8 +1,31 @@
 from rest_framework import serializers
-from .models import Allergy, Medication, Patient, Visit
+from .models import Allergy, Medication, Patient, Visit, Vital
+
+
+class VitalSerializer(serializers.ModelSerializer):
+    patient = serializers.IntegerField(source="visit.patient_id", read_only=True)
+
+    class Meta:
+        model = Vital
+        fields = [
+            "id",
+            "visit",
+            "patient",
+            "height",
+            "weight",
+            "blood_pressure",
+            "heart_rate",
+            "temperature",
+            "collected_at",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "visit", "patient", "created_at", "updated_at"]
 
 
 class VisitSerializer(serializers.ModelSerializer):
+    vitals = VitalSerializer(many=True, read_only=True)
+
     class Meta:
         model = Visit
         fields = [
@@ -12,6 +35,7 @@ class VisitSerializer(serializers.ModelSerializer):
             "primary_care_physician",
             "staff_assigned",
             "notes",
+            "vitals",
             "created_at",
             "updated_at",
         ]
@@ -57,6 +81,20 @@ class PatientDetailSerializer(serializers.ModelSerializer):
     medications = MedicationSerializer(many=True, read_only=True)
     allergies = AllergySerializer(many=True, read_only=True)
     visits = VisitSerializer(many=True, read_only=True)
+    latest_vitals = serializers.SerializerMethodField()
+
+    def get_latest_vitals(self, patient):
+        latest = (
+            Vital.objects.filter(visit__patient=patient)
+            .select_related("visit")
+            .order_by("-visit__visit_date", "-collected_at", "-id")
+            .first()
+        )
+
+        if latest is None:
+            return None
+
+        return VitalSerializer(latest).data
 
     class Meta:
         model = Patient
@@ -72,4 +110,5 @@ class PatientDetailSerializer(serializers.ModelSerializer):
             "medications",
             "allergies",
             "visits",
+            "latest_vitals",
         ]

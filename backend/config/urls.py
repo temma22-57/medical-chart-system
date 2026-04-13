@@ -16,9 +16,11 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from patients.views import VisitVitalListCreateView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/auth/", include("accounts.urls")),
     path("api/patients/", include("patients.urls")),
+    path("api/visits/<int:visit_id>/vitals/", VisitVitalListCreateView.as_view(), name="visit-vitals"),
 ]
