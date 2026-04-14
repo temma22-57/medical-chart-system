@@ -64,6 +64,24 @@ export interface PatientDetail extends Patient {
   latest_vitals: Vital | null;
 }
 
+export interface VisitPayload {
+  visit_date: string;
+  primary_care_physician: string;
+  staff_assigned?: string;
+  notes: string;
+}
+
+export interface MedicationPayload {
+  name: string;
+  dosage: string;
+  frequency: string;
+}
+
+export interface AllergyPayload {
+  substance: string;
+  reaction?: string;
+}
+
 export const getPatients = async (): Promise<Patient[]> => {
   const res = await api.get("/patients/");
   return res.data;
@@ -83,5 +101,53 @@ export const createPatient = async (patient: Patient): Promise<Patient> => {
 
 export const getPatient = async (id: number): Promise<PatientDetail> => {
   const res = await api.get(`/patients/${id}/`);
+  return res.data;
+};
+
+export const createVisit = async (
+  patientId: number,
+  visit: VisitPayload,
+): Promise<Visit> => {
+  const res = await api.post(`/patients/${patientId}/visits/`, visit);
+  return res.data;
+};
+
+export const updateVisit = async (
+  visitId: number,
+  visit: Partial<VisitPayload>,
+): Promise<Visit> => {
+  const res = await api.patch(`/visits/${visitId}/`, visit);
+  return res.data;
+};
+
+export const createMedication = async (
+  patientId: number,
+  medication: MedicationPayload,
+): Promise<Medication> => {
+  const res = await api.post(`/patients/${patientId}/medications/`, medication);
+  return res.data;
+};
+
+export const updateMedication = async (
+  medicationId: number,
+  medication: Partial<MedicationPayload>,
+): Promise<Medication> => {
+  const res = await api.patch(`/medications/${medicationId}/`, medication);
+  return res.data;
+};
+
+export const createAllergy = async (
+  patientId: number,
+  allergy: AllergyPayload,
+): Promise<Allergy> => {
+  const res = await api.post(`/patients/${patientId}/allergies/`, allergy);
+  return res.data;
+};
+
+export const updateAllergy = async (
+  allergyId: number,
+  allergy: Partial<AllergyPayload>,
+): Promise<Allergy> => {
+  const res = await api.patch(`/allergies/${allergyId}/`, allergy);
   return res.data;
 };

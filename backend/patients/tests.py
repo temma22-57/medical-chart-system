@@ -229,6 +229,26 @@ class PatientApiTests(APITestCase):
         self.assertEqual(patient.visits.count(), 1)
         self.assertEqual(response.data["notes"], "Medication review.")
 
+    def test_doctor_can_update_visit(self):
+        self.client.force_authenticate(user=self.doctor)
+        patient = Patient.objects.create(first_name="Casey", last_name="Rivera")
+        visit = Visit.objects.create(
+            patient=patient,
+            visit_date="2026-04-13",
+            primary_care_physician="Dr. Smith",
+            notes="Medication review.",
+        )
+
+        response = self.client.patch(
+            reverse("visit-detail", kwargs={"pk": visit.id}),
+            {"notes": "Updated visit notes."},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        visit.refresh_from_db()
+        self.assertEqual(visit.notes, "Updated visit notes.")
+
     def test_create_vitals_for_visit(self):
         self.client.force_authenticate(user=self.doctor)
         patient = Patient.objects.create(first_name="Casey", last_name="Rivera")

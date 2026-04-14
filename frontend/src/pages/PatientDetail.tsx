@@ -1,9 +1,190 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link as RouterLink, useParams } from "react-router-dom";
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  Paper,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  Typography,
+} from "@mui/material";
 import { getPatient } from "../features/patients/patientService";
-import type { PatientDetail as PatientDetailType } from "../features/patients/patientService";
+import type {
+  Allergy,
+  Medication,
+  PatientDetail as PatientDetailType,
+  Visit,
+} from "../features/patients/patientService";
 
-type DetailSection = "overview" | "visits" | "medications" | "allergies" | "vitals";
+function displayValue(value: string | number | undefined | null) {
+  return value === undefined || value === null || value === "" ? "Not recorded" : value;
+}
+
+function SectionTitle({
+  addTo,
+  title,
+}: {
+  addTo: string;
+  title: string;
+}) {
+  return (
+    <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+      <Button component={RouterLink} to={addTo} size="small" variant="contained">
+        + Add
+      </Button>
+      <Typography component="h4" variant="h6">
+        {title}
+      </Typography>
+    </Stack>
+  );
+}
+
+function EmptyState({ children }: { children: string }) {
+  return <Typography color="text.secondary">{children}</Typography>;
+}
+
+function VisitsCard({ patientId, visits }: { patientId: number; visits: Visit[] }) {
+  return (
+    <Card variant="outlined">
+      <CardHeader title={<SectionTitle addTo={`/patients/${patientId}/visits/new`} title="Visits" />} />
+      <CardContent>
+        {visits.length === 0 ? (
+          <EmptyState>No visits recorded.</EmptyState>
+        ) : (
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Date</TableCell>
+                <TableCell>Physician</TableCell>
+                <TableCell>Staff</TableCell>
+                <TableCell>Notes</TableCell>
+                <TableCell>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {visits.map((visit) => (
+                <TableRow key={visit.id}>
+                  <TableCell>{visit.visit_date}</TableCell>
+                  <TableCell>{visit.primary_care_physician}</TableCell>
+                  <TableCell>{displayValue(visit.staff_assigned)}</TableCell>
+                  <TableCell>{visit.notes}</TableCell>
+                  <TableCell>
+                    <Button
+                      component={RouterLink}
+                      to={`/patients/${patientId}/visits/${visit.id}/edit`}
+                      size="small"
+                    >
+                      Edit
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function MedicationsCard({
+  patientId,
+  medications,
+}: {
+  patientId: number;
+  medications: Medication[];
+}) {
+  return (
+    <Card variant="outlined">
+      <CardHeader
+        title={<SectionTitle addTo={`/patients/${patientId}/medications/new`} title="Medications" />}
+      />
+      <CardContent>
+        {medications.length === 0 ? (
+          <EmptyState>No medications recorded.</EmptyState>
+        ) : (
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Name</TableCell>
+                <TableCell>Dosage</TableCell>
+                <TableCell>Frequency</TableCell>
+                <TableCell>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {medications.map((medication) => (
+                <TableRow key={medication.id}>
+                  <TableCell>{medication.name}</TableCell>
+                  <TableCell>{medication.dosage}</TableCell>
+                  <TableCell>{medication.frequency}</TableCell>
+                  <TableCell>
+                    <Button
+                      component={RouterLink}
+                      to={`/patients/${patientId}/medications/${medication.id}/edit`}
+                      size="small"
+                    >
+                      Edit
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function AllergiesCard({ patientId, allergies }: { patientId: number; allergies: Allergy[] }) {
+  return (
+    <Card variant="outlined">
+      <CardHeader
+        title={<SectionTitle addTo={`/patients/${patientId}/allergies/new`} title="Allergies" />}
+      />
+      <CardContent>
+        {allergies.length === 0 ? (
+          <EmptyState>No allergies recorded.</EmptyState>
+        ) : (
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Substance</TableCell>
+                <TableCell>Reaction</TableCell>
+                <TableCell>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {allergies.map((allergy) => (
+                <TableRow key={allergy.id}>
+                  <TableCell>{allergy.substance}</TableCell>
+                  <TableCell>{displayValue(allergy.reaction)}</TableCell>
+                  <TableCell>
+                    <Button
+                      component={RouterLink}
+                      to={`/patients/${patientId}/allergies/${allergy.id}/edit`}
+                      size="small"
+                    >
+                      Edit
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function PatientDetail() {
   const { id } = useParams();
@@ -11,7 +192,6 @@ export default function PatientDetail() {
   const [patient, setPatient] = useState<PatientDetailType | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [activeSection, setActiveSection] = useState<DetailSection>("overview");
 
   useEffect(() => {
     const loadPatient = async () => {
@@ -50,127 +230,62 @@ export default function PatientDetail() {
     return <p>Select a patient to view medical record details.</p>;
   }
 
+  const latestVitals = patient.latest_vitals;
+
   return (
-    <section style={{ marginTop: 24, textAlign: "left" }}>
-      <Link to="/patients">Back to patients</Link>
-      <h3>
-        {patient.first_name} {patient.last_name}
-      </h3>
+    <Stack spacing={3} sx={{ textAlign: "left" }}>
+      <Button component={RouterLink} to="/patients" size="small">
+        Back to patients
+      </Button>
 
-      <nav style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
-        {(["overview", "visits", "medications", "allergies", "vitals"] as DetailSection[]).map(
-          (section) => (
-            <button
-              key={section}
-              type="button"
-              onClick={() => setActiveSection(section)}
-              style={{
-                borderColor: activeSection === section ? "var(--accent)" : "var(--border)",
-              }}
-            >
-              {section[0].toUpperCase() + section.slice(1)}
-            </button>
-          ),
-        )}
-      </nav>
+      <Paper
+        variant="outlined"
+        sx={{
+          alignItems: "center",
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 3,
+          justifyContent: "space-between",
+          p: 2,
+        }}
+      >
+        <Box>
+          <Typography component="h2" variant="h5">
+            {patient.first_name} {patient.last_name}
+          </Typography>
+          <Typography>DOB: {displayValue(patient.date_of_birth)}</Typography>
+          <Typography>Phone: {displayValue(patient.phone)}</Typography>
+        </Box>
 
-      {activeSection === "overview" && (
-        <>
-          <h4>Overview</h4>
-          <p>Date of birth: {patient.date_of_birth || "Not recorded"}</p>
-          <p>Phone: {patient.phone || "Not recorded"}</p>
-          {patient.notes && <p>Notes: {patient.notes}</p>}
-        </>
-      )}
+        <Stack direction="row" sx={{ flexWrap: "wrap", gap: 2 }}>
+          <Box>
+            <Typography variant="caption">Height</Typography>
+            <Typography>{displayValue(latestVitals?.height)}</Typography>
+          </Box>
+          <Box>
+            <Typography variant="caption">Weight</Typography>
+            <Typography>{displayValue(latestVitals?.weight)}</Typography>
+          </Box>
+          <Box>
+            <Typography variant="caption">Blood Pressure</Typography>
+            <Typography>{displayValue(latestVitals?.blood_pressure)}</Typography>
+          </Box>
+          <Box>
+            <Typography variant="caption">Heart Rate</Typography>
+            <Typography>{displayValue(latestVitals?.heart_rate)}</Typography>
+          </Box>
+          <Box>
+            <Typography variant="caption">Temperature</Typography>
+            <Typography>{displayValue(latestVitals?.temperature)}</Typography>
+          </Box>
+        </Stack>
+      </Paper>
 
-      {activeSection === "vitals" && (
-        <>
-          <h4>Latest Vitals</h4>
-          {patient.latest_vitals ? (
-            <dl>
-              <dt>Height</dt>
-              <dd>{patient.latest_vitals.height}</dd>
-              <dt>Weight</dt>
-              <dd>{patient.latest_vitals.weight}</dd>
-              <dt>Blood pressure</dt>
-              <dd>{patient.latest_vitals.blood_pressure}</dd>
-              <dt>Heart rate</dt>
-              <dd>{patient.latest_vitals.heart_rate}</dd>
-              <dt>Temperature</dt>
-              <dd>{patient.latest_vitals.temperature}</dd>
-              <dt>Collected</dt>
-              <dd>{new Date(patient.latest_vitals.collected_at).toLocaleString()}</dd>
-            </dl>
-          ) : (
-            <p>No vitals recorded.</p>
-          )}
-        </>
-      )}
-
-      {activeSection === "medications" && (
-        <>
-          <h4>Medications</h4>
-          {patient.medications.length === 0 ? (
-            <p>No medications recorded.</p>
-          ) : (
-            <ul>
-              {patient.medications.map((medication) => (
-                <li key={medication.id}>
-                  {medication.name} - {medication.dosage}, {medication.frequency}
-                </li>
-              ))}
-            </ul>
-          )}
-        </>
-      )}
-
-      {activeSection === "allergies" && (
-        <>
-          <h4>Allergies</h4>
-          {patient.allergies.length === 0 ? (
-            <p>No allergies recorded.</p>
-          ) : (
-            <ul>
-              {patient.allergies.map((allergy) => (
-                <li key={allergy.id}>
-                  {allergy.substance}
-                  {allergy.reaction ? ` - ${allergy.reaction}` : ""}
-                </li>
-              ))}
-            </ul>
-          )}
-        </>
-      )}
-
-      {activeSection === "visits" && (
-        <>
-          <h4>Visit History</h4>
-          {patient.visits.length === 0 ? (
-            <p>No visits recorded.</p>
-          ) : (
-            <ul>
-              {patient.visits.map((visit) => (
-                <li key={visit.id}>
-                  <strong>{visit.visit_date}</strong> with {visit.primary_care_physician}
-                  {visit.staff_assigned ? `, staff: ${visit.staff_assigned}` : ""}
-                  <br />
-                  {visit.notes}
-                  {visit.vitals.length > 0 && (
-                    <ul>
-                      {visit.vitals.map((vital) => (
-                        <li key={vital.id}>
-                          Vitals: {vital.blood_pressure}, HR {vital.heart_rate}, temp{" "}
-                          {vital.temperature}, height {vital.height}, weight {vital.weight}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </>
-      )}
-    </section>
+      <Stack spacing={2}>
+        <VisitsCard patientId={patient.id} visits={patient.visits} />
+        <MedicationsCard patientId={patient.id} medications={patient.medications} />
+        <AllergiesCard patientId={patient.id} allergies={patient.allergies} />
+      </Stack>
+    </Stack>
   );
 }

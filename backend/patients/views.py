@@ -81,6 +81,12 @@ class PatientVisitListCreateView(generics.ListCreateAPIView):
         serializer.save(patient=patient)
 
 
+class VisitDetailView(generics.RetrieveUpdateAPIView):
+    queryset = Visit.objects.all()
+    serializer_class = VisitSerializer
+    permission_classes = [ViewModelPermissions]
+
+
 class PatientMedicationListCreateView(generics.ListCreateAPIView):
     serializer_class = MedicationSerializer
     permission_classes = [ViewModelPermissions]
@@ -93,6 +99,12 @@ class PatientMedicationListCreateView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         patient = get_object_or_404(Patient, id=self.kwargs["patient_id"])
         serializer.save(patient=patient)
+
+
+class MedicationDetailView(generics.RetrieveUpdateAPIView):
+    queryset = Medication.objects.all()
+    serializer_class = MedicationSerializer
+    permission_classes = [ViewModelPermissions]
 
 
 class PatientAllergyListCreateView(generics.ListCreateAPIView):
@@ -109,6 +121,12 @@ class PatientAllergyListCreateView(generics.ListCreateAPIView):
         serializer.save(patient=patient)
 
 
+class AllergyDetailView(generics.RetrieveUpdateAPIView):
+    queryset = Allergy.objects.all()
+    serializer_class = AllergySerializer
+    permission_classes = [ViewModelPermissions]
+
+
 class VisitVitalListCreateView(generics.ListCreateAPIView):
     serializer_class = VitalSerializer
     permission_classes = [ViewModelPermissions]
@@ -122,3 +140,9 @@ class VisitVitalListCreateView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         visit = get_object_or_404(Visit, id=self.kwargs["visit_id"])
         serializer.save(visit=visit)
+
+
+class VitalDetailView(generics.RetrieveUpdateAPIView):
+    queryset = Vital.objects.all()
+    serializer_class = VitalSerializer
+    permission_classes = [ViewModelPermissions]

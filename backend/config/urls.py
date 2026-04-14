@@ -16,11 +16,21 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from patients.views import VisitVitalListCreateView
+from patients.views import (
+    AllergyDetailView,
+    MedicationDetailView,
+    VisitDetailView,
+    VisitVitalListCreateView,
+    VitalDetailView,
+)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/auth/", include("accounts.urls")),
     path("api/patients/", include("patients.urls")),
+    path("api/visits/<int:pk>/", VisitDetailView.as_view(), name="visit-detail"),
     path("api/visits/<int:visit_id>/vitals/", VisitVitalListCreateView.as_view(), name="visit-vitals"),
+    path("api/medications/<int:pk>/", MedicationDetailView.as_view(), name="medication-detail"),
+    path("api/allergies/<int:pk>/", AllergyDetailView.as_view(), name="allergy-detail"),
+    path("api/vitals/<int:pk>/", VitalDetailView.as_view(), name="vital-detail"),
 ]

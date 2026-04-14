@@ -6,6 +6,7 @@ import AuthenticatedLayout from "./components/AuthenticatedLayout";
 import LoginPage from "./pages/LoginPage";
 import PatientCreatePage from "./pages/PatientCreatePage";
 import PatientDetail from "./pages/PatientDetail";
+import PatientRelatedRecordFormPage from "./pages/PatientRelatedRecordFormPage";
 import PatientsPage from "./pages/PatientsPage";
 
 function App() {
@@ -72,6 +73,30 @@ function App() {
         <Route path="/patients" element={<PatientsPage currentUser={currentUser!} />} />
         <Route path="/patients/new" element={<PatientCreatePage currentUser={currentUser!} />} />
         <Route path="/patients/:id" element={<PatientDetail />} />
+        <Route
+          path="/patients/:id/visits/new"
+          element={<PatientRelatedRecordFormPage recordType="visits" mode="add" />}
+        />
+        <Route
+          path="/patients/:id/visits/:recordId/edit"
+          element={<PatientRelatedRecordFormPage recordType="visits" mode="edit" />}
+        />
+        <Route
+          path="/patients/:id/medications/new"
+          element={<PatientRelatedRecordFormPage recordType="medications" mode="add" />}
+        />
+        <Route
+          path="/patients/:id/medications/:recordId/edit"
+          element={<PatientRelatedRecordFormPage recordType="medications" mode="edit" />}
+        />
+        <Route
+          path="/patients/:id/allergies/new"
+          element={<PatientRelatedRecordFormPage recordType="allergies" mode="add" />}
+        />
+        <Route
+          path="/patients/:id/allergies/:recordId/edit"
+          element={<PatientRelatedRecordFormPage recordType="allergies" mode="edit" />}
+        />
       </Route>
       <Route path="*" element={<Navigate to={currentUser ? "/patients" : "/login"} replace />} />
     </Routes>
