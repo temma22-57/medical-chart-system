@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
+import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { getCurrentUser, hasAuthToken, logout } from "./features/auth/authService";
 import type { CurrentUser } from "./features/auth/authService";
-import PatientSearch from "./components/PatientSearch";
+import AuthenticatedLayout from "./components/AuthenticatedLayout";
 import LoginPage from "./pages/LoginPage";
+import PatientDetail from "./pages/PatientDetail";
 import PatientsPage from "./pages/PatientsPage";
 
 function App() {
+  const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
 
   useEffect(() => {
     const loadCurrentUser = async () => {
@@ -33,47 +35,44 @@ function App() {
   const handleLogout = async () => {
     await logout();
     setCurrentUser(null);
-    setSelectedPatientId(null);
+    navigate("/login");
+  };
+
+  const handleLogin = (user: CurrentUser) => {
+    setCurrentUser(user);
+    navigate("/patients");
   };
 
   if (loading) {
     return <p style={{ padding: 20 }}>Loading...</p>;
   }
 
-  if (!currentUser) {
-    return <LoginPage onLogin={setCurrentUser} />;
-  }
-
   return (
-    <>
-      <header
-        style={{
-          alignItems: "center",
-          borderBottom: "1px solid var(--border)",
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 12,
-          justifyContent: "space-between",
-          padding: 20,
-          textAlign: "left",
-        }}
-      >
-        <PatientSearch onSelectPatient={setSelectedPatientId} />
-        <div>
-          <span>
-            Signed in as {currentUser.username} ({currentUser.roles.join(", ") || "No role"})
-          </span>
-          <button type="button" style={{ marginLeft: 8 }} onClick={handleLogout}>
-            Log out
-          </button>
-        </div>
-      </header>
-      <PatientsPage
-        currentUser={currentUser}
-        selectedPatientId={selectedPatientId}
-        onSelectPatient={setSelectedPatientId}
+    <Routes>
+      <Route
+        path="/login"
+        element={
+          currentUser ? (
+            <Navigate to="/patients" replace />
+          ) : (
+            <LoginPage onLogin={handleLogin} />
+          )
+        }
       />
-    </>
+      <Route
+        element={
+          currentUser ? (
+            <AuthenticatedLayout currentUser={currentUser} onLogout={handleLogout} />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      >
+        <Route path="/patients" element={<PatientsPage currentUser={currentUser!} />} />
+        <Route path="/patients/:id" element={<PatientDetail />} />
+      </Route>
+      <Route path="*" element={<Navigate to={currentUser ? "/patients" : "/login"} replace />} />
+    </Routes>
   );
 }
 

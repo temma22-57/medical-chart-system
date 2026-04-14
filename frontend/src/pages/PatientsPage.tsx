@@ -1,21 +1,17 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { getPatients, createPatient } from "../features/patients/patientService";
 import type { CurrentUser } from "../features/auth/authService";
 import type { Patient } from "../features/patients/patientService";
-import PatientDetail from "./PatientDetail";
 
 interface PatientsPageProps {
   currentUser: CurrentUser;
-  selectedPatientId: number | null;
-  onSelectPatient: (patientId: number) => void;
 }
 
-export default function PatientsPage({
-  currentUser,
-  selectedPatientId,
-  onSelectPatient,
-}: PatientsPageProps) {
+export default function PatientsPage({ currentUser }: PatientsPageProps) {
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [form, setForm] = useState<Patient>({
     first_name: "",
     last_name: "",
@@ -27,19 +23,34 @@ export default function PatientsPage({
   }, []);
 
   const loadPatients = async () => {
-    const data = await getPatients();
-    setPatients(data);
+    setLoading(true);
+    setError("");
+
+    try {
+      const data = await getPatients();
+      setPatients(data);
+    } catch {
+      setError("Unable to load patients.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await createPatient(form);
-    setForm({ first_name: "", last_name: "" });
-    await loadPatients();
+    setError("");
+
+    try {
+      await createPatient(form);
+      setForm({ first_name: "", last_name: "" });
+      await loadPatients();
+    } catch {
+      setError("Unable to create patient.");
+    }
   };
 
   return (
-    <div style={{ padding: 20 }}>
+    <section style={{ textAlign: "left" }}>
       <h2>Patients</h2>
 
       {canCreatePatients ? (
@@ -64,32 +75,29 @@ export default function PatientsPage({
         <p>Nurse access is read-only for patient records in this prototype.</p>
       )}
 
-      <ul>
-        {patients.map((p) => {
-          const patientId = p.id;
-
-          return (
-            <li key={patientId}>
-              {p.first_name} {p.last_name}
-              {patientId !== undefined && (
-                <button
-                  type="button"
-                  style={{ marginLeft: 8 }}
-                  onClick={() => onSelectPatient(patientId)}
-                >
-                  View record
-                </button>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-
-      {selectedPatientId ? (
-        <PatientDetail patientId={selectedPatientId} />
+      {error && <p>{error}</p>}
+      {loading ? (
+        <p>Loading patients...</p>
+      ) : patients.length === 0 ? (
+        <p>No patients recorded yet.</p>
       ) : (
-        <p>Select a patient to view visit history, medications, and allergies.</p>
+        <ul>
+          {patients.map((p) => {
+            const patientId = p.id;
+
+            return (
+              <li key={patientId}>
+                {p.first_name} {p.last_name}
+                {patientId !== undefined && (
+                  <Link style={{ marginLeft: 8 }} to={`/patients/${patientId}`}>
+                    View record
+                  </Link>
+                )}
+              </li>
+            );
+          })}
+        </ul>
       )}
-    </div>
+    </section>
   );
 }
