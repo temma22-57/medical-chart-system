@@ -4,6 +4,7 @@ import { getCurrentUser, hasAuthToken, logout } from "./features/auth/authServic
 import type { CurrentUser } from "./features/auth/authService";
 import AuthenticatedLayout from "./components/AuthenticatedLayout";
 import LoginPage from "./pages/LoginPage";
+import PatientCreatePage from "./pages/PatientCreatePage";
 import PatientDetail from "./pages/PatientDetail";
 import PatientsPage from "./pages/PatientsPage";
 
@@ -69,6 +70,7 @@ function App() {
         }
       >
         <Route path="/patients" element={<PatientsPage currentUser={currentUser!} />} />
+        <Route path="/patients/new" element={<PatientCreatePage currentUser={currentUser!} />} />
         <Route path="/patients/:id" element={<PatientDetail />} />
       </Route>
       <Route path="*" element={<Navigate to={currentUser ? "/patients" : "/login"} replace />} />

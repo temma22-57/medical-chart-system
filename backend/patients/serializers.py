@@ -72,6 +72,27 @@ class AllergySerializer(serializers.ModelSerializer):
 
 
 class PatientSerializer(serializers.ModelSerializer):
+    def validate(self, attrs):
+        if self.instance is not None:
+            return attrs
+
+        first_name = attrs.get("first_name")
+        last_name = attrs.get("last_name")
+        date_of_birth = attrs.get("date_of_birth")
+        phone = attrs.get("phone") or ""
+
+        if Patient.objects.filter(
+            first_name=first_name,
+            last_name=last_name,
+            date_of_birth=date_of_birth,
+            phone=phone,
+        ).exists():
+            raise serializers.ValidationError(
+                "An identical patient record already exists."
+            )
+
+        return attrs
+
     class Meta:
         model = Patient
         fields = "__all__"

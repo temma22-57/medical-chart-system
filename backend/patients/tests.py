@@ -114,6 +114,7 @@ class PatientApiTests(APITestCase):
             "first_name": "Taylor",
             "last_name": "Morgan",
             "date_of_birth": "1985-06-20",
+            "phone": "555-0100",
         }
 
         create_response = self.client.post(reverse("patients"), payload, format="json")
@@ -122,6 +123,42 @@ class PatientApiTests(APITestCase):
         self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(list_response.status_code, status.HTTP_200_OK)
         self.assertEqual(list_response.data[0]["first_name"], "Taylor")
+
+    def test_create_patient_blocks_exact_duplicate(self):
+        self.client.force_authenticate(user=self.doctor)
+        payload = {
+            "first_name": "Taylor",
+            "last_name": "Morgan",
+            "date_of_birth": "1985-06-20",
+            "phone": "555-0100",
+        }
+        Patient.objects.create(**payload)
+
+        response = self.client.post(reverse("patients"), payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Patient.objects.count(), 1)
+        self.assertIn("identical patient", str(response.data))
+
+    def test_create_patient_allows_same_name_with_different_dob_or_phone(self):
+        self.client.force_authenticate(user=self.doctor)
+        Patient.objects.create(
+            first_name="Taylor",
+            last_name="Morgan",
+            date_of_birth="1985-06-20",
+            phone="555-0100",
+        )
+        payload = {
+            "first_name": "Taylor",
+            "last_name": "Morgan",
+            "date_of_birth": "1990-01-15",
+            "phone": "555-0100",
+        }
+
+        response = self.client.post(reverse("patients"), payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Patient.objects.count(), 2)
 
     def test_search_patients_by_first_or_last_name(self):
         self.client.force_authenticate(user=self.nurse)
