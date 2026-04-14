@@ -8,6 +8,7 @@ import PatientCreatePage from "./pages/PatientCreatePage";
 import PatientDetail from "./pages/PatientDetail";
 import PatientRelatedRecordFormPage from "./pages/PatientRelatedRecordFormPage";
 import PatientsPage from "./pages/PatientsPage";
+import VisitVitalsFormPage from "./pages/VisitVitalsFormPage";
 
 function App() {
   const navigate = useNavigate();
@@ -81,6 +82,7 @@ function App() {
           path="/patients/:id/visits/:recordId/edit"
           element={<PatientRelatedRecordFormPage recordType="visits" mode="edit" />}
         />
+        <Route path="/patients/:id/visits/:recordId/vitals/new" element={<VisitVitalsFormPage />} />
         <Route
           path="/patients/:id/medications/new"
           element={<PatientRelatedRecordFormPage recordType="medications" mode="add" />}

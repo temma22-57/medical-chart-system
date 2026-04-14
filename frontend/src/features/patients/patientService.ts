@@ -82,6 +82,14 @@ export interface AllergyPayload {
   reaction?: string;
 }
 
+export interface VitalPayload {
+  height: string;
+  weight: string;
+  blood_pressure: string;
+  heart_rate: number;
+  temperature: string;
+}
+
 export const getPatients = async (): Promise<Patient[]> => {
   const res = await api.get("/patients/");
   return res.data;
@@ -149,5 +157,13 @@ export const updateAllergy = async (
   allergy: Partial<AllergyPayload>,
 ): Promise<Allergy> => {
   const res = await api.patch(`/allergies/${allergyId}/`, allergy);
+  return res.data;
+};
+
+export const createVital = async (
+  visitId: number,
+  vital: VitalPayload,
+): Promise<Vital> => {
+  const res = await api.post(`/visits/${visitId}/vitals/`, vital);
   return res.data;
 };

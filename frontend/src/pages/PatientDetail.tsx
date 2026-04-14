@@ -23,6 +23,40 @@ import type {
   Visit,
 } from "../features/patients/patientService";
 
+const chartCardSx = {
+  backgroundColor: "#242824",
+  borderColor: "#3a453b",
+  color: "#f4f7f1",
+  "& .MuiCardHeader-root": {
+    borderBottom: "1px solid #3a453b",
+  },
+  "& .MuiTypography-root": {
+    color: "inherit",
+  },
+  "& .MuiTypography-colorTextSecondary": {
+    color: "#c4ccbe",
+  },
+  "& .MuiTableCell-root": {
+    borderColor: "#3a453b",
+    color: "#f4f7f1",
+  },
+  "& .MuiTableHead-root .MuiTableCell-root": {
+    color: "#dfe8d8",
+    fontWeight: 700,
+  },
+  "& .MuiButton-text": {
+    color: "#9bd18f",
+  },
+};
+
+const notesClampSx = {
+  display: "-webkit-box",
+  maxWidth: 360,
+  overflow: "hidden",
+  WebkitBoxOrient: "vertical",
+  WebkitLineClamp: 3,
+};
+
 function displayValue(value: string | number | undefined | null) {
   return value === undefined || value === null || value === "" ? "Not recorded" : value;
 }
@@ -47,12 +81,12 @@ function SectionTitle({
 }
 
 function EmptyState({ children }: { children: string }) {
-  return <Typography color="text.secondary">{children}</Typography>;
+  return <Typography sx={{ color: "#c4ccbe" }}>{children}</Typography>;
 }
 
 function VisitsCard({ patientId, visits }: { patientId: number; visits: Visit[] }) {
   return (
-    <Card variant="outlined">
+    <Card variant="outlined" sx={chartCardSx}>
       <CardHeader title={<SectionTitle addTo={`/patients/${patientId}/visits/new`} title="Visits" />} />
       <CardContent>
         {visits.length === 0 ? (
@@ -74,7 +108,9 @@ function VisitsCard({ patientId, visits }: { patientId: number; visits: Visit[] 
                   <TableCell>{visit.visit_date}</TableCell>
                   <TableCell>{visit.primary_care_physician}</TableCell>
                   <TableCell>{displayValue(visit.staff_assigned)}</TableCell>
-                  <TableCell>{visit.notes}</TableCell>
+                  <TableCell>
+                    <Box sx={notesClampSx}>{visit.notes}</Box>
+                  </TableCell>
                   <TableCell>
                     <Button
                       component={RouterLink}
@@ -102,7 +138,7 @@ function MedicationsCard({
   medications: Medication[];
 }) {
   return (
-    <Card variant="outlined">
+    <Card variant="outlined" sx={chartCardSx}>
       <CardHeader
         title={<SectionTitle addTo={`/patients/${patientId}/medications/new`} title="Medications" />}
       />
@@ -146,7 +182,7 @@ function MedicationsCard({
 
 function AllergiesCard({ patientId, allergies }: { patientId: number; allergies: Allergy[] }) {
   return (
-    <Card variant="outlined">
+    <Card variant="outlined" sx={chartCardSx}>
       <CardHeader
         title={<SectionTitle addTo={`/patients/${patientId}/allergies/new`} title="Allergies" />}
       />
@@ -242,6 +278,9 @@ export default function PatientDetail() {
         variant="outlined"
         sx={{
           alignItems: "center",
+          backgroundColor: "#153f37",
+          borderColor: "#2f6d5c",
+          color: "#f6fff8",
           display: "flex",
           flexWrap: "wrap",
           gap: 3,
@@ -250,33 +289,33 @@ export default function PatientDetail() {
         }}
       >
         <Box>
-          <Typography component="h2" variant="h5">
+          <Typography component="h2" variant="h5" sx={{ color: "#ffffff", fontWeight: 700 }}>
             {patient.first_name} {patient.last_name}
           </Typography>
-          <Typography>DOB: {displayValue(patient.date_of_birth)}</Typography>
-          <Typography>Phone: {displayValue(patient.phone)}</Typography>
+          <Typography sx={{ color: "#d8f1e8" }}>DOB: {displayValue(patient.date_of_birth)}</Typography>
+          <Typography sx={{ color: "#d8f1e8" }}>Phone: {displayValue(patient.phone)}</Typography>
         </Box>
 
         <Stack direction="row" sx={{ flexWrap: "wrap", gap: 2 }}>
           <Box>
-            <Typography variant="caption">Height</Typography>
-            <Typography>{displayValue(latestVitals?.height)}</Typography>
+            <Typography variant="caption" sx={{ color: "#bde3d7" }}>Height</Typography>
+            <Typography sx={{ color: "#ffffff" }}>{displayValue(latestVitals?.height)}</Typography>
           </Box>
           <Box>
-            <Typography variant="caption">Weight</Typography>
-            <Typography>{displayValue(latestVitals?.weight)}</Typography>
+            <Typography variant="caption" sx={{ color: "#bde3d7" }}>Weight</Typography>
+            <Typography sx={{ color: "#ffffff" }}>{displayValue(latestVitals?.weight)}</Typography>
           </Box>
           <Box>
-            <Typography variant="caption">Blood Pressure</Typography>
-            <Typography>{displayValue(latestVitals?.blood_pressure)}</Typography>
+            <Typography variant="caption" sx={{ color: "#bde3d7" }}>Blood Pressure</Typography>
+            <Typography sx={{ color: "#ffffff" }}>{displayValue(latestVitals?.blood_pressure)}</Typography>
           </Box>
           <Box>
-            <Typography variant="caption">Heart Rate</Typography>
-            <Typography>{displayValue(latestVitals?.heart_rate)}</Typography>
+            <Typography variant="caption" sx={{ color: "#bde3d7" }}>Heart Rate</Typography>
+            <Typography sx={{ color: "#ffffff" }}>{displayValue(latestVitals?.heart_rate)}</Typography>
           </Box>
           <Box>
-            <Typography variant="caption">Temperature</Typography>
-            <Typography>{displayValue(latestVitals?.temperature)}</Typography>
+            <Typography variant="caption" sx={{ color: "#bde3d7" }}>Temperature</Typography>
+            <Typography sx={{ color: "#ffffff" }}>{displayValue(latestVitals?.temperature)}</Typography>
           </Box>
         </Stack>
       </Paper>

@@ -116,6 +116,7 @@ export default function PatientRelatedRecordFormPage({
   const relatedRecordId = Number(recordId);
   const [values, setValues] = useState<FormValues>(initialValues[recordType]);
   const [patient, setPatient] = useState<PatientDetail | null>(null);
+  const [currentRecord, setCurrentRecord] = useState<Visit | Medication | Allergy | null>(null);
   const [loading, setLoading] = useState(mode === "edit");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -146,6 +147,7 @@ export default function PatientRelatedRecordFormPage({
         }
 
         setPatient(loadedPatient);
+        setCurrentRecord(record);
         setValues(valuesFromRecord(recordType, record));
       } catch {
         setError("Unable to load record.");
@@ -217,6 +219,11 @@ export default function PatientRelatedRecordFormPage({
 
   const recordTitle = titleFor(recordType);
   const fields = Object.entries(fieldLabels[recordType]);
+  const visitWithoutVitals =
+    recordType === "visits" &&
+    mode === "edit" &&
+    currentRecord &&
+    (currentRecord as Visit).vitals.length === 0;
 
   return (
     <section style={{ textAlign: "left" }}>
@@ -263,6 +270,14 @@ export default function PatientRelatedRecordFormPage({
       </form>
       {mode === "edit" && (
         <p>Saving edits requires a confirmation step after you submit this form.</p>
+      )}
+      {visitWithoutVitals && (
+        <p style={{ marginTop: 12 }}>
+          No vitals have been recorded for this visit.{" "}
+          <Link to={`/patients/${patientId}/visits/${relatedRecordId}/vitals/new`}>
+            Add Vitals
+          </Link>
+        </p>
       )}
       {error && <p>{error}</p>}
     </section>
