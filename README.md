@@ -147,7 +147,7 @@ The compose file publishes PostgreSQL to `localhost:5432` by default so the host
 
 The API uses Django's built-in user model, Django Groups, Django model permissions, and DRF token authentication.
 
-Create local demo roles and users after migrations:
+Create local demo roles, users, patients, and related medical records after migrations:
 
 ```bash
 cd backend
