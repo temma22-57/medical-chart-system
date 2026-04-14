@@ -10,6 +10,8 @@ The local development workflow is:
 - Django runs on the host in a Python virtual environment.
 - React/Vite runs on the host with npm.
 
+Run commands from the repo root unless a step says to `cd` into a subdirectory.
+
 ## Prerequisites
 
 - git
@@ -59,7 +61,6 @@ python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install --upgrade pip
 python3 -m pip install -r requirements.txt
-python3 manage.py makemigrations
 python3 manage.py migrate
 python3 manage.py bootstrap_demo_users
 python3 manage.py runserver
@@ -96,6 +97,31 @@ Frontend terminal:
 ```bash
 cd frontend
 npm run dev
+```
+
+Open:
+
+```text
+http://localhost:5173/
+```
+
+## Build And Checks
+
+Backend tests:
+
+```bash
+cd backend
+source .venv/bin/activate
+python3 manage.py test accounts patients
+python3 manage.py makemigrations --check --dry-run
+```
+
+Frontend build and lint:
+
+```bash
+cd frontend
+npm run build
+npm run lint
 ```
 
 ## Database Notes
