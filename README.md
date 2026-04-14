@@ -107,7 +107,13 @@ http://localhost:5173/
 
 ## Build And Checks
 
-Backend tests:
+Backend regression tests use Django's test runner and the configured PostgreSQL connection. Start the database first:
+
+```bash
+docker compose up -d db
+```
+
+Then run:
 
 ```bash
 cd backend

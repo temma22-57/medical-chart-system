@@ -5,6 +5,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from .models import Allergy, Medication, Patient, Visit, Vital
+from .serializers import PatientDetailSerializer, PatientSerializer, VisitSerializer
 
 
 def create_user_with_permissions(username, permission_codenames):
@@ -20,6 +21,11 @@ def create_user_with_permissions(username, permission_codenames):
 
 
 class PatientRelationshipTests(APITestCase):
+    def test_patient_string_representation_uses_full_name(self):
+        patient = Patient.objects.create(first_name="Avery", last_name="Stone")
+
+        self.assertEqual(str(patient), "Avery Stone")
+
     def test_patient_has_related_medications_allergies_and_visits(self):
         patient = Patient.objects.create(
             first_name="Avery",
@@ -68,6 +74,86 @@ class PatientRelationshipTests(APITestCase):
 
         self.assertEqual(visit.vitals.count(), 1)
         self.assertEqual(patient.visits.first().vitals.first().blood_pressure, "120/80")
+
+
+class PatientSerializerTests(APITestCase):
+    def test_patient_serializer_accepts_valid_payload(self):
+        serializer = PatientSerializer(
+            data={
+                "first_name": "Taylor",
+                "last_name": "Morgan",
+                "date_of_birth": "1985-06-20",
+                "phone": "555-0100",
+            }
+        )
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        patient = serializer.save()
+        self.assertEqual(patient.first_name, "Taylor")
+        self.assertEqual(patient.phone, "555-0100")
+
+    def test_patient_serializer_rejects_exact_duplicate(self):
+        Patient.objects.create(
+            first_name="Taylor",
+            last_name="Morgan",
+            date_of_birth="1985-06-20",
+            phone="555-0100",
+        )
+        serializer = PatientSerializer(
+            data={
+                "first_name": "Taylor",
+                "last_name": "Morgan",
+                "date_of_birth": "1985-06-20",
+                "phone": "555-0100",
+            }
+        )
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("identical patient", str(serializer.errors))
+
+    def test_visit_serializer_includes_nested_vitals(self):
+        patient = Patient.objects.create(first_name="Riley", last_name="Brooks")
+        visit = Visit.objects.create(
+            patient=patient,
+            visit_date="2026-04-13",
+            primary_care_physician="Dr. Smith",
+            notes="Annual visit.",
+        )
+        Vital.objects.create(
+            visit=visit,
+            height="67.50",
+            weight="145.25",
+            blood_pressure="122/78",
+            heart_rate=74,
+            temperature="98.70",
+        )
+
+        data = VisitSerializer(visit).data
+
+        self.assertEqual(data["patient"], patient.id)
+        self.assertEqual(data["vitals"][0]["blood_pressure"], "122/78")
+
+    def test_patient_detail_serializer_includes_latest_vitals(self):
+        patient = Patient.objects.create(first_name="Riley", last_name="Brooks")
+        visit = Visit.objects.create(
+            patient=patient,
+            visit_date="2026-04-13",
+            primary_care_physician="Dr. Smith",
+            notes="Annual visit.",
+        )
+        Vital.objects.create(
+            visit=visit,
+            height="67.50",
+            weight="145.25",
+            blood_pressure="122/78",
+            heart_rate=74,
+            temperature="98.70",
+        )
+
+        data = PatientDetailSerializer(patient).data
+
+        self.assertEqual(data["latest_vitals"]["heart_rate"], 74)
+        self.assertEqual(data["visits"][0]["vitals"][0]["temperature"], "98.70")
 
 
 class PatientApiTests(APITestCase):
@@ -248,6 +334,26 @@ class PatientApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         visit.refresh_from_db()
         self.assertEqual(visit.notes, "Updated visit notes.")
+
+    def test_nurse_cannot_update_visit(self):
+        self.client.force_authenticate(user=self.nurse)
+        patient = Patient.objects.create(first_name="Casey", last_name="Rivera")
+        visit = Visit.objects.create(
+            patient=patient,
+            visit_date="2026-04-13",
+            primary_care_physician="Dr. Smith",
+            notes="Medication review.",
+        )
+
+        response = self.client.patch(
+            reverse("visit-detail", kwargs={"pk": visit.id}),
+            {"notes": "Nurse edit attempt."},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        visit.refresh_from_db()
+        self.assertEqual(visit.notes, "Medication review.")
 
     def test_create_vitals_for_visit(self):
         self.client.force_authenticate(user=self.doctor)

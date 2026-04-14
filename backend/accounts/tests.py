@@ -25,6 +25,22 @@ class AuthApiTests(APITestCase):
         self.assertEqual(response.data["user"]["roles"], ["Doctor"])
         self.assertFalse(response.data["mfa_required"])
 
+    def test_login_rejects_invalid_credentials(self):
+        get_user_model().objects.create_user(
+            username="doctor",
+            password="doctorpass",
+        )
+
+        response = self.client.post(
+            reverse("auth-login"),
+            {"username": "doctor", "password": "wrongpass"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertNotIn("token", response.data)
+        self.assertIn("Invalid username or password", str(response.data))
+
     def test_me_requires_authentication(self):
         response = self.client.get(reverse("auth-me"))
 
