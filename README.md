@@ -122,12 +122,13 @@ python3 manage.py test accounts patients
 python3 manage.py makemigrations --check --dry-run
 ```
 
-Frontend build and lint:
+Frontend build, lint, and smoke tests:
 
 ```bash
 cd frontend
 npm run build
 npm run lint
+npm run test
 ```
 
 ## Database Notes
