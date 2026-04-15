@@ -2,6 +2,12 @@ Medical Chart System
 
 Class project for a medical chart database and medical history system.
 
+## Project Documentation
+
+- [Architecture](docs/architecture.md)
+- [API specification](docs/api-spec.md)
+- [Database schema](docs/database-schema.md)
+
 ## Local Development
 
 The simplest repeatable development workflow is:
