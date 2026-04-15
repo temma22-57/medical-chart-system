@@ -4,7 +4,11 @@ Class project for a medical chart database and medical history system.
 
 ## Local Development
 
-The local development workflow is:
+The simplest repeatable development workflow is:
+
+- PostgreSQL, Django, and React/Vite run together with Docker Compose.
+
+The mixed host workflow is still supported:
 
 - PostgreSQL runs in Docker.
 - Django runs on the host in a Python virtual environment.
@@ -24,7 +28,7 @@ Run commands from the repo root unless a step says to `cd` into a subdirectory.
 
 ## Environment Setup
 
-Create a local `.env` file from the example:
+Create a local `.env` file from the example if you want to override the default local settings:
 
 ```bash
 cp .env.example .env
@@ -41,11 +45,58 @@ DB_USER=medical_chart_user
 DB_PASSWORD=medical_chart_password
 DB_HOST=localhost
 DB_PORT=5432
+
+BACKEND_PORT=8000
+FRONTEND_PORT=5173
+VITE_API_BASE_URL=http://localhost:8000/api
 ```
 
 Do not commit `.env`; it is ignored by git.
 
-## First Run
+## Full Docker Run
+
+Start the full stack:
+
+```bash
+docker compose up --build
+```
+
+Open:
+
+```text
+http://localhost:5173/
+```
+
+The backend is available at:
+
+```text
+http://localhost:8000/
+```
+
+If ports `8000` or `5173` are already in use, set `BACKEND_PORT` and `FRONTEND_PORT` in `.env`. If `BACKEND_PORT` changes, update `VITE_API_BASE_URL` to match.
+
+The backend container automatically runs migrations and loads demo users plus demo patient data at startup.
+
+Demo users:
+
+```text
+doctor / doctorpass
+nurse / nursepass
+```
+
+Stop the stack:
+
+```bash
+docker compose down
+```
+
+To remove the local PostgreSQL volume and reset demo data:
+
+```bash
+docker compose down -v
+```
+
+## Mixed Local First Run
 
 Start PostgreSQL:
 
