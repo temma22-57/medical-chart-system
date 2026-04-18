@@ -20,6 +20,16 @@ def create_user_with_permissions(username, permission_codenames):
     return user
 
 
+def create_user_with_group(username, group_name):
+    user = get_user_model().objects.create_user(
+        username=username,
+        password="testpass",
+    )
+    group = Group.objects.create(name=group_name)
+    user.groups.add(group)
+    return user
+
+
 class PatientRelationshipTests(APITestCase):
     def test_patient_string_representation_uses_full_name(self):
         patient = Patient.objects.create(first_name="Avery", last_name="Stone")
@@ -84,6 +94,7 @@ class PatientSerializerTests(APITestCase):
                 "last_name": "Morgan",
                 "date_of_birth": "1985-06-20",
                 "phone": "555-0100",
+                "primary_language": "English",
             }
         )
 
@@ -91,6 +102,7 @@ class PatientSerializerTests(APITestCase):
         patient = serializer.save()
         self.assertEqual(patient.first_name, "Taylor")
         self.assertEqual(patient.phone, "555-0100")
+        self.assertEqual(patient.primary_language, "English")
 
     def test_patient_serializer_rejects_exact_duplicate(self):
         Patient.objects.create(
@@ -188,11 +200,55 @@ class PatientApiTests(APITestCase):
                 "view_vital",
             ],
         )
+        self.admin = create_user_with_group("admin", "Admin")
 
     def test_unauthenticated_users_cannot_access_patient_list(self):
         response = self.client.get(reverse("patients"))
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_admin_cannot_access_patient_data_endpoints(self):
+        self.client.force_authenticate(user=self.admin)
+        patient = Patient.objects.create(first_name="Jordan", last_name="Kim")
+        visit = Visit.objects.create(
+            patient=patient,
+            visit_date="2026-04-13",
+            primary_care_physician="Dr. Smith",
+            notes="Admin should not see this.",
+        )
+        medication = Medication.objects.create(
+            patient=patient,
+            name="Lisinopril",
+            dosage="10 mg",
+            frequency="Daily",
+        )
+        allergy = Allergy.objects.create(patient=patient, substance="Latex")
+        vital = Vital.objects.create(
+            visit=visit,
+            height="68.00",
+            weight="160.00",
+            blood_pressure="120/80",
+            heart_rate=70,
+            temperature="98.60",
+        )
+
+        endpoints = [
+            reverse("patients"),
+            reverse("patient-detail", kwargs={"pk": patient.id}),
+            reverse("patient-visits", kwargs={"patient_id": patient.id}),
+            reverse("visit-detail", kwargs={"pk": visit.id}),
+            reverse("patient-medications", kwargs={"patient_id": patient.id}),
+            reverse("medication-detail", kwargs={"pk": medication.id}),
+            reverse("patient-allergies", kwargs={"patient_id": patient.id}),
+            reverse("allergy-detail", kwargs={"pk": allergy.id}),
+            reverse("patient-latest-vitals", kwargs={"patient_id": patient.id}),
+            reverse("visit-vitals", kwargs={"visit_id": visit.id}),
+            reverse("vital-detail", kwargs={"pk": vital.id}),
+        ]
+
+        for endpoint in endpoints:
+            response = self.client.get(endpoint)
+            self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_create_and_list_patients(self):
         self.client.force_authenticate(user=self.doctor)
@@ -201,6 +257,7 @@ class PatientApiTests(APITestCase):
             "last_name": "Morgan",
             "date_of_birth": "1985-06-20",
             "phone": "555-0100",
+            "primary_language": "English",
         }
 
         create_response = self.client.post(reverse("patients"), payload, format="json")
@@ -209,6 +266,7 @@ class PatientApiTests(APITestCase):
         self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(list_response.status_code, status.HTTP_200_OK)
         self.assertEqual(list_response.data[0]["first_name"], "Taylor")
+        self.assertEqual(list_response.data[0]["primary_language"], "English")
 
     def test_create_patient_blocks_exact_duplicate(self):
         self.client.force_authenticate(user=self.doctor)
@@ -289,6 +347,7 @@ class PatientApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["first_name"], "Jordan")
+        self.assertIn("primary_language", response.data)
         self.assertEqual(response.data["medications"][0]["name"], "Lisinopril")
         self.assertEqual(response.data["allergies"][0]["substance"], "Latex")
         self.assertEqual(response.data["visits"][0]["primary_care_physician"], "Dr. Nguyen")

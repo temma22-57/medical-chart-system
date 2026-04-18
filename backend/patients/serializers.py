@@ -125,6 +125,7 @@ class PatientDetailSerializer(serializers.ModelSerializer):
             "last_name",
             "date_of_birth",
             "phone",
+            "primary_language",
             "notes",
             "created_at",
             "updated_at",

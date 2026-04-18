@@ -86,6 +86,7 @@ The backend container automatically runs migrations and loads demo users plus de
 Demo users:
 
 ```text
+admin / adminpass
 doctor / doctorpass
 nurse / nursepass
 ```
@@ -204,6 +205,12 @@ The compose file publishes PostgreSQL to `localhost:5432` by default so the host
 
 The API uses Django's built-in user model, Django Groups, Django model permissions, and DRF token authentication.
 
+The current app-level roles are:
+
+- `Admin`
+- `Doctor`
+- `Nurse`
+
 Create local demo roles, users, patients, and related medical records after migrations:
 
 ```bash
@@ -215,6 +222,7 @@ python3 manage.py bootstrap_demo_users
 Demo users:
 
 ```text
+admin / adminpass
 doctor / doctorpass
 nurse / nursepass
 ```
@@ -222,8 +230,17 @@ nurse / nursepass
 Role behavior in the current prototype:
 
 - Unauthenticated users cannot access patient record APIs.
-- Doctor users can view patient records and create patient/medical-record data.
-- Nurse users can view patient records but cannot create restricted medical-record data.
+- Admin users can manage user accounts but cannot access patient record APIs or related patient data.
+- Doctor users can view, create, and update patient-domain records.
+- Nurse users can view patient-domain records but cannot create or update restricted medical-record data.
+
+Admin user management supports:
+
+- listing users
+- creating Admin, Doctor, and Nurse users
+- updating a user's role/profile fields
+- resetting a user's password
+- deleting users, except the currently signed-in admin account
 
 Auth endpoints:
 
@@ -231,6 +248,14 @@ Auth endpoints:
 POST /api/auth/login/
 POST /api/auth/logout/
 GET /api/auth/me/
+GET /api/auth/users/
+POST /api/auth/users/
+GET /api/auth/users/{id}/
+PATCH /api/auth/users/{id}/
+DELETE /api/auth/users/{id}/
+POST /api/auth/users/{id}/reset-password/
 ```
+
+Only Admin users can access the `/api/auth/users/` user-management endpoints.
 
 The login response includes `mfa_required: false`. A later TOTP-based MFA step can plug into this login flow by returning `mfa_required: true` before issuing or fully activating a token.

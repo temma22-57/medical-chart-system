@@ -12,6 +12,7 @@ export default function AuthenticatedLayout({
   onLogout,
 }: AuthenticatedLayoutProps) {
   const navigate = useNavigate();
+  const isAdmin = currentUser.roles.includes("Admin");
 
   return (
     <>
@@ -28,8 +29,14 @@ export default function AuthenticatedLayout({
         }}
       >
         <nav style={{ alignItems: "center", display: "flex", gap: 12 }}>
-          <NavLink to="/patients">Patients</NavLink>
-          <PatientSearch onSelectPatient={(patientId) => navigate(`/patients/${patientId}`)} />
+          {isAdmin ? (
+            <NavLink to="/admin/users">User Management</NavLink>
+          ) : (
+            <>
+              <NavLink to="/patients">Patients</NavLink>
+              <PatientSearch onSelectPatient={(patientId) => navigate(`/patients/${patientId}`)} />
+            </>
+          )}
         </nav>
         <div>
           <span>

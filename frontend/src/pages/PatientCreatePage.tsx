@@ -42,6 +42,7 @@ export default function PatientCreatePage({ currentUser }: PatientCreatePageProp
     last_name: "",
     date_of_birth: "",
     phone: "",
+    primary_language: "",
   });
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -63,6 +64,7 @@ export default function PatientCreatePage({ currentUser }: PatientCreatePageProp
         first_name: form.first_name.trim(),
         last_name: form.last_name.trim(),
         phone: form.phone?.trim() || "",
+        primary_language: form.primary_language?.trim() || "",
       };
 
       if (form.date_of_birth) {
@@ -136,6 +138,17 @@ export default function PatientCreatePage({ currentUser }: PatientCreatePageProp
               value={form.phone || ""}
               onChange={(event) =>
                 setForm({ ...form, phone: event.target.value })
+              }
+            />
+          </label>
+        </div>
+        <div>
+          <label>
+            Primary language
+            <input
+              value={form.primary_language || ""}
+              onChange={(event) =>
+                setForm({ ...form, primary_language: event.target.value })
               }
             />
           </label>

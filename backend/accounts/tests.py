@@ -50,6 +50,80 @@ class AuthApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
 
+class AdminUserManagementApiTests(APITestCase):
+    def setUp(self):
+        self.admin_group = Group.objects.create(name="Admin")
+        self.doctor_group = Group.objects.create(name="Doctor")
+        self.nurse_group = Group.objects.create(name="Nurse")
+        self.admin = get_user_model().objects.create_user(
+            username="admin",
+            password="adminpass",
+        )
+        self.admin.groups.add(self.admin_group)
+
+    def test_admin_can_create_list_update_reset_password_and_delete_user(self):
+        self.client.force_authenticate(user=self.admin)
+
+        create_response = self.client.post(
+            reverse("managed-users"),
+            {
+                "username": "newdoctor",
+                "password": "doctorpass",
+                "first_name": "New",
+                "last_name": "Doctor",
+                "email": "newdoctor@example.com",
+                "role": "Doctor",
+            },
+            format="json",
+        )
+
+        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(create_response.data["roles"], ["Doctor"])
+        user_id = create_response.data["id"]
+
+        list_response = self.client.get(reverse("managed-users"))
+
+        self.assertEqual(list_response.status_code, status.HTTP_200_OK)
+        self.assertTrue(any(user["username"] == "newdoctor" for user in list_response.data))
+
+        update_response = self.client.patch(
+            reverse("managed-user-detail", kwargs={"pk": user_id}),
+            {"role": "Nurse"},
+            format="json",
+        )
+
+        self.assertEqual(update_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(update_response.data["roles"], ["Nurse"])
+
+        reset_response = self.client.post(
+            reverse("managed-user-reset-password", kwargs={"pk": user_id}),
+            {"password": "newpass"},
+            format="json",
+        )
+
+        self.assertEqual(reset_response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertTrue(get_user_model().objects.get(id=user_id).check_password("newpass"))
+
+        delete_response = self.client.delete(
+            reverse("managed-user-detail", kwargs={"pk": user_id})
+        )
+
+        self.assertEqual(delete_response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(get_user_model().objects.filter(id=user_id).exists())
+
+    def test_doctor_cannot_manage_users(self):
+        doctor = get_user_model().objects.create_user(
+            username="doctor",
+            password="doctorpass",
+        )
+        doctor.groups.add(self.doctor_group)
+        self.client.force_authenticate(user=doctor)
+
+        response = self.client.get(reverse("managed-users"))
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
 class DemoDataCommandTests(APITestCase):
     def test_bootstrap_demo_users_creates_demo_users_and_records_idempotently(self):
         call_command("bootstrap_demo_users")
@@ -59,6 +133,11 @@ class DemoDataCommandTests(APITestCase):
 
         self.assertTrue(User.objects.filter(username="doctor").exists())
         self.assertTrue(User.objects.filter(username="nurse").exists())
+        self.assertTrue(User.objects.filter(username="admin").exists())
+        self.assertEqual(
+            list(User.objects.get(username="admin").groups.values_list("name", flat=True)),
+            ["Admin"],
+        )
         self.assertEqual(
             list(User.objects.get(username="doctor").groups.values_list("name", flat=True)),
             ["Doctor"],

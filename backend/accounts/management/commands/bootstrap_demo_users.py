@@ -6,9 +6,10 @@ from patients.models import Allergy, Medication, Patient, Visit, Vital
 
 
 class Command(BaseCommand):
-    help = "Create Doctor/Nurse groups, demo users, and demo patient data for local development."
+    help = "Create Admin/Doctor/Nurse groups, demo users, and demo patient data for local development."
 
     def handle(self, *args, **options):
+        admin_group = self.create_group("Admin", [])
         doctor_group = self.create_group(
             "Doctor",
             [
@@ -40,6 +41,7 @@ class Command(BaseCommand):
             ],
         )
 
+        self.create_user("admin", "adminpass", admin_group)
         self.create_user("doctor", "doctorpass", doctor_group)
         self.create_user("nurse", "nursepass", nurse_group)
         self.create_demo_medical_records()
@@ -72,6 +74,7 @@ class Command(BaseCommand):
             date_of_birth="1984-02-14",
             phone="555-0101",
             defaults={
+                "primary_language": "English",
                 "notes": "Demo patient with hypertension follow-up history.",
             },
         )
@@ -81,6 +84,7 @@ class Command(BaseCommand):
             date_of_birth="1991-09-22",
             phone="555-0102",
             defaults={
+                "primary_language": "Spanish",
                 "notes": "Demo patient with asthma and seasonal allergy history.",
             },
         )

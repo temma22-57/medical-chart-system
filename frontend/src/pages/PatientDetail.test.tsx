@@ -20,6 +20,7 @@ describe("PatientDetail", () => {
       last_name: "Stone",
       date_of_birth: "1990-04-12",
       phone: "555-0100",
+      primary_language: "English",
       medications: [
         {
           id: 3,
@@ -76,6 +77,8 @@ describe("PatientDetail", () => {
     });
     expect(screen.getByText(/dob: 1990-04-12/i)).toBeInTheDocument();
     expect(screen.getByText(/phone: 555-0100/i)).toBeInTheDocument();
+    expect(screen.getByText(/primary language/i)).toBeInTheDocument();
+    expect(screen.getByText("English")).toBeInTheDocument();
     expect(screen.getByText("122/78")).toBeInTheDocument();
     expect(screen.getByText("Lisinopril")).toBeInTheDocument();
     expect(screen.getByText("Penicillin")).toBeInTheDocument();

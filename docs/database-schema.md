@@ -37,6 +37,7 @@ Django provides the user, group, and permission tables.
 
 Important project usage:
 
+- `Admin` group has no patient-domain permissions and is used by custom API permissions for user-management endpoints.
 - `Doctor` group has view/add/change permissions for patients, visits, medications, allergies, and vitals.
 - `Nurse` group has view permissions for patients, visits, medications, allergies, and vitals.
 - DRF token authentication stores API tokens in the `authtoken_token` table.
@@ -56,6 +57,7 @@ Fields:
 | `last_name` | `CharField(max_length=100)` | Required |
 | `date_of_birth` | `DateField(null=True, blank=True)` | Optional |
 | `phone` | `CharField(max_length=20, blank=True)` | Optional |
+| `primary_language` | `CharField(max_length=100, blank=True)` | Optional |
 | `notes` | `TextField(blank=True)` | Optional |
 | `created_at` | `DateTimeField(auto_now_add=True)` | Created timestamp |
 | `updated_at` | `DateTimeField(auto_now=True)` | Updated timestamp |

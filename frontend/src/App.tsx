@@ -8,6 +8,7 @@ import PatientCreatePage from "./pages/PatientCreatePage";
 import PatientDetail from "./pages/PatientDetail";
 import PatientRelatedRecordFormPage from "./pages/PatientRelatedRecordFormPage";
 import PatientsPage from "./pages/PatientsPage";
+import UserManagementPage from "./pages/UserManagementPage";
 import VisitVitalsFormPage from "./pages/VisitVitalsFormPage";
 
 function App() {
@@ -43,12 +44,14 @@ function App() {
 
   const handleLogin = (user: CurrentUser) => {
     setCurrentUser(user);
-    navigate("/patients");
+    navigate(user.roles.includes("Admin") ? "/admin/users" : "/patients");
   };
 
   if (loading) {
     return <p style={{ padding: 20 }}>Loading...</p>;
   }
+
+  const isAdmin = currentUser?.roles.includes("Admin") ?? false;
 
   return (
     <Routes>
@@ -56,7 +59,7 @@ function App() {
         path="/login"
         element={
           currentUser ? (
-            <Navigate to="/patients" replace />
+            <Navigate to={isAdmin ? "/admin/users" : "/patients"} replace />
           ) : (
             <LoginPage onLogin={handleLogin} />
           )
@@ -71,36 +74,114 @@ function App() {
           )
         }
       >
-        <Route path="/patients" element={<PatientsPage currentUser={currentUser!} />} />
-        <Route path="/patients/new" element={<PatientCreatePage currentUser={currentUser!} />} />
-        <Route path="/patients/:id" element={<PatientDetail />} />
+        <Route
+          path="/admin/users"
+          element={
+            isAdmin ? (
+              <UserManagementPage currentUser={currentUser!} />
+            ) : (
+              <Navigate to="/patients" replace />
+            )
+          }
+        />
+        <Route
+          path="/patients"
+          element={
+            isAdmin ? (
+              <Navigate to="/admin/users" replace />
+            ) : (
+              <PatientsPage currentUser={currentUser!} />
+            )
+          }
+        />
+        <Route
+          path="/patients/new"
+          element={
+            isAdmin ? (
+              <Navigate to="/admin/users" replace />
+            ) : (
+              <PatientCreatePage currentUser={currentUser!} />
+            )
+          }
+        />
+        <Route
+          path="/patients/:id"
+          element={isAdmin ? <Navigate to="/admin/users" replace /> : <PatientDetail />}
+        />
         <Route
           path="/patients/:id/visits/new"
-          element={<PatientRelatedRecordFormPage recordType="visits" mode="add" />}
+          element={
+            isAdmin ? (
+              <Navigate to="/admin/users" replace />
+            ) : (
+              <PatientRelatedRecordFormPage recordType="visits" mode="add" />
+            )
+          }
         />
         <Route
           path="/patients/:id/visits/:recordId/edit"
-          element={<PatientRelatedRecordFormPage recordType="visits" mode="edit" />}
+          element={
+            isAdmin ? (
+              <Navigate to="/admin/users" replace />
+            ) : (
+              <PatientRelatedRecordFormPage recordType="visits" mode="edit" />
+            )
+          }
         />
-        <Route path="/patients/:id/visits/:recordId/vitals/new" element={<VisitVitalsFormPage />} />
+        <Route
+          path="/patients/:id/visits/:recordId/vitals/new"
+          element={isAdmin ? <Navigate to="/admin/users" replace /> : <VisitVitalsFormPage />}
+        />
         <Route
           path="/patients/:id/medications/new"
-          element={<PatientRelatedRecordFormPage recordType="medications" mode="add" />}
+          element={
+            isAdmin ? (
+              <Navigate to="/admin/users" replace />
+            ) : (
+              <PatientRelatedRecordFormPage recordType="medications" mode="add" />
+            )
+          }
         />
         <Route
           path="/patients/:id/medications/:recordId/edit"
-          element={<PatientRelatedRecordFormPage recordType="medications" mode="edit" />}
+          element={
+            isAdmin ? (
+              <Navigate to="/admin/users" replace />
+            ) : (
+              <PatientRelatedRecordFormPage recordType="medications" mode="edit" />
+            )
+          }
         />
         <Route
           path="/patients/:id/allergies/new"
-          element={<PatientRelatedRecordFormPage recordType="allergies" mode="add" />}
+          element={
+            isAdmin ? (
+              <Navigate to="/admin/users" replace />
+            ) : (
+              <PatientRelatedRecordFormPage recordType="allergies" mode="add" />
+            )
+          }
         />
         <Route
           path="/patients/:id/allergies/:recordId/edit"
-          element={<PatientRelatedRecordFormPage recordType="allergies" mode="edit" />}
+          element={
+            isAdmin ? (
+              <Navigate to="/admin/users" replace />
+            ) : (
+              <PatientRelatedRecordFormPage recordType="allergies" mode="edit" />
+            )
+          }
         />
       </Route>
-      <Route path="*" element={<Navigate to={currentUser ? "/patients" : "/login"} replace />} />
+      <Route
+        path="*"
+        element={
+          <Navigate
+            to={currentUser ? (currentUser.roles.includes("Admin") ? "/admin/users" : "/patients") : "/login"}
+            replace
+          />
+        }
+      />
     </Routes>
   );
 }

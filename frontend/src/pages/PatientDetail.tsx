@@ -296,6 +296,13 @@ export default function PatientDetail() {
           <Typography sx={{ color: "#d8f1e8" }}>Phone: {displayValue(patient.phone)}</Typography>
         </Box>
 
+        <Box sx={{ flex: "1 1 180px", textAlign: "center" }}>
+          <Typography variant="caption" sx={{ color: "#bde3d7" }}>Primary Language</Typography>
+          <Typography sx={{ color: "#ffffff", fontWeight: 700 }}>
+            {displayValue(patient.primary_language)}
+          </Typography>
+        </Box>
+
         <Stack direction="row" sx={{ flexWrap: "wrap", gap: 2 }}>
           <Box>
             <Typography variant="caption" sx={{ color: "#bde3d7" }}>Height</Typography>

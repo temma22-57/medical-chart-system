@@ -46,6 +46,7 @@ The Django backend owns:
 
 - PostgreSQL schema through Django models and migrations.
 - Token-based login/logout/current-user endpoints.
+- Admin-only user-management endpoints.
 - Role-aware patient-domain API permissions.
 - Patient, visit, medication, allergy, and vital APIs.
 - Demo user and demo patient-data bootstrapping.
@@ -97,6 +98,7 @@ Current routes:
 
 ```text
 /login
+/admin/users
 /patients
 /patients/new
 /patients/:id
@@ -206,11 +208,16 @@ The current auth foundation uses:
 
 Current demo roles:
 
+- `Admin`
+  - Can list, create, update, reset passwords for, and delete user accounts.
+  - Cannot access patient records or related patient-domain endpoints.
 - `Doctor`
   - Can view, add, and change patient-domain records.
 - `Nurse`
   - Can view patient-domain records.
   - Cannot add or change restricted patient-domain records.
+
+The frontend routes Admin users to `/admin/users` and hides patient navigation/search for that role. The backend also enforces the separation: Admin-only user-management endpoints require the `Admin` group, and patient-domain permissions explicitly reject Admin users.
 
 The backend does not currently implement MFA, audit logging, or a full enterprise permission matrix.
 
