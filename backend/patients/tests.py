@@ -20,6 +20,16 @@ def create_user_with_permissions(username, permission_codenames):
     return user
 
 
+def create_user_with_group(username, group_name):
+    user = get_user_model().objects.create_user(
+        username=username,
+        password="testpass",
+    )
+    group = Group.objects.create(name=group_name)
+    user.groups.add(group)
+    return user
+
+
 class PatientRelationshipTests(APITestCase):
     def test_patient_string_representation_uses_full_name(self):
         patient = Patient.objects.create(first_name="Avery", last_name="Stone")
@@ -190,11 +200,55 @@ class PatientApiTests(APITestCase):
                 "view_vital",
             ],
         )
+        self.admin = create_user_with_group("admin", "Admin")
 
     def test_unauthenticated_users_cannot_access_patient_list(self):
         response = self.client.get(reverse("patients"))
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_admin_cannot_access_patient_data_endpoints(self):
+        self.client.force_authenticate(user=self.admin)
+        patient = Patient.objects.create(first_name="Jordan", last_name="Kim")
+        visit = Visit.objects.create(
+            patient=patient,
+            visit_date="2026-04-13",
+            primary_care_physician="Dr. Smith",
+            notes="Admin should not see this.",
+        )
+        medication = Medication.objects.create(
+            patient=patient,
+            name="Lisinopril",
+            dosage="10 mg",
+            frequency="Daily",
+        )
+        allergy = Allergy.objects.create(patient=patient, substance="Latex")
+        vital = Vital.objects.create(
+            visit=visit,
+            height="68.00",
+            weight="160.00",
+            blood_pressure="120/80",
+            heart_rate=70,
+            temperature="98.60",
+        )
+
+        endpoints = [
+            reverse("patients"),
+            reverse("patient-detail", kwargs={"pk": patient.id}),
+            reverse("patient-visits", kwargs={"patient_id": patient.id}),
+            reverse("visit-detail", kwargs={"pk": visit.id}),
+            reverse("patient-medications", kwargs={"patient_id": patient.id}),
+            reverse("medication-detail", kwargs={"pk": medication.id}),
+            reverse("patient-allergies", kwargs={"patient_id": patient.id}),
+            reverse("allergy-detail", kwargs={"pk": allergy.id}),
+            reverse("patient-latest-vitals", kwargs={"patient_id": patient.id}),
+            reverse("visit-vitals", kwargs={"visit_id": visit.id}),
+            reverse("vital-detail", kwargs={"pk": vital.id}),
+        ]
+
+        for endpoint in endpoints:
+            response = self.client.get(endpoint)
+            self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_create_and_list_patients(self):
         self.client.force_authenticate(user=self.doctor)

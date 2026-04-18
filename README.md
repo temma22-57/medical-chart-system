@@ -86,6 +86,7 @@ The backend container automatically runs migrations and loads demo users plus de
 Demo users:
 
 ```text
+admin / adminpass
 doctor / doctorpass
 nurse / nursepass
 ```
@@ -222,6 +223,7 @@ nurse / nursepass
 Role behavior in the current prototype:
 
 - Unauthenticated users cannot access patient record APIs.
+- Admin users can manage user accounts but cannot access patient record APIs.
 - Doctor users can view patient records and create patient/medical-record data.
 - Nurse users can view patient records but cannot create restricted medical-record data.
 

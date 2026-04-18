@@ -19,6 +19,7 @@ Authorization: Token <token>
 The project uses Django users, groups, and model permissions.
 
 - Unauthenticated users cannot access patient medical-record APIs.
+- `Admin` users can manage user accounts but cannot access patient medical-record APIs.
 - `Doctor` users can view, create, and update patient-domain records covered by the current permission setup.
 - `Nurse` users can view patient-domain records but do not have add/change permissions.
 - Login is public.
@@ -27,6 +28,7 @@ The project uses Django users, groups, and model permissions.
 The demo data command creates:
 
 ```text
+admin / adminpass
 doctor / doctorpass
 nurse / nursepass
 ```
@@ -103,6 +105,135 @@ Response:
 }
 ```
 
+## Admin User-Management Endpoints
+
+These endpoints are available only to users in the `Admin` group.
+
+Admin users do not receive patient-domain permissions and are explicitly blocked by patient endpoint permissions.
+
+### GET `/api/auth/users/`
+
+Lists application users.
+
+Auth required: yes
+
+Role required: `Admin`
+
+Response:
+
+```json
+[
+  {
+    "id": 1,
+    "username": "doctor",
+    "first_name": "",
+    "last_name": "",
+    "email": "",
+    "roles": ["Doctor"]
+  }
+]
+```
+
+### POST `/api/auth/users/`
+
+Creates an application user and assigns one role.
+
+Auth required: yes
+
+Role required: `Admin`
+
+Request:
+
+```json
+{
+  "username": "newdoctor",
+  "password": "doctorpass",
+  "first_name": "New",
+  "last_name": "Doctor",
+  "email": "newdoctor@example.com",
+  "role": "Doctor"
+}
+```
+
+Allowed roles:
+
+```text
+Admin
+Doctor
+Nurse
+```
+
+Response: created user object.
+
+### GET `/api/auth/users/{id}/`
+
+Retrieves one application user.
+
+Auth required: yes
+
+Role required: `Admin`
+
+Response: user object.
+
+### PUT/PATCH `/api/auth/users/{id}/`
+
+Updates user profile fields and/or role.
+
+Auth required: yes
+
+Role required: `Admin`
+
+Patch request:
+
+```json
+{
+  "role": "Nurse",
+  "email": "updated@example.com"
+}
+```
+
+Response: updated user object.
+
+### POST `/api/auth/users/{id}/reset-password/`
+
+Resets a user's password and deletes existing API tokens for that user.
+
+Auth required: yes
+
+Role required: `Admin`
+
+Request:
+
+```json
+{
+  "password": "new-password"
+}
+```
+
+Response:
+
+```text
+204 No Content
+```
+
+### DELETE `/api/auth/users/{id}/`
+
+Deletes a user account.
+
+Auth required: yes
+
+Role required: `Admin`
+
+Response:
+
+```text
+204 No Content
+```
+
+Notes:
+
+- Admins cannot delete their own account through this endpoint.
+
 ## Patient Endpoints
 
 ### GET `/api/patients/`
@@ -112,6 +243,8 @@ Lists patients.
 Auth required: yes
 
 Permission required: `patients.view_patient`
+
+Admin role behavior: blocked even if patient permissions are accidentally assigned.
 
 Optional query params:
 
