@@ -131,6 +131,7 @@ Response:
     "last_name": "Kim",
     "date_of_birth": "1984-02-14",
     "phone": "555-0101",
+    "primary_language": "English",
     "notes": "Demo patient with hypertension follow-up history.",
     "created_at": "2026-04-15T04:18:00Z",
     "updated_at": "2026-04-15T04:18:00Z"
@@ -154,6 +155,7 @@ Request:
   "last_name": "Kim",
   "date_of_birth": "1984-02-14",
   "phone": "555-0101",
+  "primary_language": "English",
   "notes": "Optional demographic or chart note."
 }
 ```
@@ -167,6 +169,7 @@ Response:
   "last_name": "Kim",
   "date_of_birth": "1984-02-14",
   "phone": "555-0101",
+  "primary_language": "English",
   "notes": "Optional demographic or chart note.",
   "created_at": "2026-04-15T04:18:00Z",
   "updated_at": "2026-04-15T04:18:00Z"
@@ -196,6 +199,7 @@ Response:
   "last_name": "Kim",
   "date_of_birth": "1984-02-14",
   "phone": "555-0101",
+  "primary_language": "English",
   "notes": "Demo patient with hypertension follow-up history.",
   "created_at": "2026-04-15T04:18:00Z",
   "updated_at": "2026-04-15T04:18:00Z",

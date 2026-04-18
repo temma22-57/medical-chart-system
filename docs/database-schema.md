@@ -56,6 +56,7 @@ Fields:
 | `last_name` | `CharField(max_length=100)` | Required |
 | `date_of_birth` | `DateField(null=True, blank=True)` | Optional |
 | `phone` | `CharField(max_length=20, blank=True)` | Optional |
+| `primary_language` | `CharField(max_length=100, blank=True)` | Optional |
 | `notes` | `TextField(blank=True)` | Optional |
 | `created_at` | `DateTimeField(auto_now_add=True)` | Created timestamp |
 | `updated_at` | `DateTimeField(auto_now=True)` | Updated timestamp |

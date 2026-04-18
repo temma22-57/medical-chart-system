@@ -72,6 +72,7 @@ class Command(BaseCommand):
             date_of_birth="1984-02-14",
             phone="555-0101",
             defaults={
+                "primary_language": "English",
                 "notes": "Demo patient with hypertension follow-up history.",
             },
         )
@@ -81,6 +82,7 @@ class Command(BaseCommand):
             date_of_birth="1991-09-22",
             phone="555-0102",
             defaults={
+                "primary_language": "Spanish",
                 "notes": "Demo patient with asthma and seasonal allergy history.",
             },
         )

@@ -84,6 +84,7 @@ class PatientSerializerTests(APITestCase):
                 "last_name": "Morgan",
                 "date_of_birth": "1985-06-20",
                 "phone": "555-0100",
+                "primary_language": "English",
             }
         )
 
@@ -91,6 +92,7 @@ class PatientSerializerTests(APITestCase):
         patient = serializer.save()
         self.assertEqual(patient.first_name, "Taylor")
         self.assertEqual(patient.phone, "555-0100")
+        self.assertEqual(patient.primary_language, "English")
 
     def test_patient_serializer_rejects_exact_duplicate(self):
         Patient.objects.create(
@@ -201,6 +203,7 @@ class PatientApiTests(APITestCase):
             "last_name": "Morgan",
             "date_of_birth": "1985-06-20",
             "phone": "555-0100",
+            "primary_language": "English",
         }
 
         create_response = self.client.post(reverse("patients"), payload, format="json")
@@ -209,6 +212,7 @@ class PatientApiTests(APITestCase):
         self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(list_response.status_code, status.HTTP_200_OK)
         self.assertEqual(list_response.data[0]["first_name"], "Taylor")
+        self.assertEqual(list_response.data[0]["primary_language"], "English")
 
     def test_create_patient_blocks_exact_duplicate(self):
         self.client.force_authenticate(user=self.doctor)
@@ -289,6 +293,7 @@ class PatientApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["first_name"], "Jordan")
+        self.assertIn("primary_language", response.data)
         self.assertEqual(response.data["medications"][0]["name"], "Lisinopril")
         self.assertEqual(response.data["allergies"][0]["substance"], "Latex")
         self.assertEqual(response.data["visits"][0]["primary_care_physician"], "Dr. Nguyen")
