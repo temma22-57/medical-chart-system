@@ -18,6 +18,7 @@ from django.contrib import admin
 from django.urls import path, include
 from patients.views import (
     AllergyDetailView,
+    DiagnosisDetailView,
     MedicationDetailView,
     VisitDetailView,
     VisitVitalListCreateView,
@@ -31,6 +32,7 @@ urlpatterns = [
     path("api/visits/<int:pk>/", VisitDetailView.as_view(), name="visit-detail"),
     path("api/visits/<int:visit_id>/vitals/", VisitVitalListCreateView.as_view(), name="visit-vitals"),
     path("api/medications/<int:pk>/", MedicationDetailView.as_view(), name="medication-detail"),
+    path("api/diagnoses/<int:pk>/", DiagnosisDetailView.as_view(), name="diagnosis-detail"),
     path("api/allergies/<int:pk>/", AllergyDetailView.as_view(), name="allergy-detail"),
     path("api/vitals/<int:pk>/", VitalDetailView.as_view(), name="vital-detail"),
 ]

@@ -2,15 +2,17 @@ from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from rest_framework import generics
-from .models import Allergy, Medication, Patient, Visit, Vital
+from .models import Allergy, Diagnosis, Medication, Patient, Visit, Vital
 from .permissions import ViewModelPermissions
 from .serializers import (
     AllergySerializer,
+    DiagnosisSerializer,
     MedicationSerializer,
     PatientDetailSerializer,
     PatientSerializer,
     VitalSerializer,
     VisitSerializer,
+    order_diagnoses,
 )
 
 
@@ -36,6 +38,7 @@ class PatientListCreateView(generics.ListCreateAPIView):
 class PatientDetailView(generics.RetrieveAPIView):
     queryset = Patient.objects.prefetch_related(
         "medications",
+        "diagnoses",
         "allergies",
         "visits",
         "visits__vitals",
@@ -104,6 +107,26 @@ class PatientMedicationListCreateView(generics.ListCreateAPIView):
 class MedicationDetailView(generics.RetrieveUpdateAPIView):
     queryset = Medication.objects.all()
     serializer_class = MedicationSerializer
+    permission_classes = [ViewModelPermissions]
+
+
+class PatientDiagnosisListCreateView(generics.ListCreateAPIView):
+    serializer_class = DiagnosisSerializer
+    permission_classes = [ViewModelPermissions]
+
+    def get_queryset(self):
+        return order_diagnoses(
+            Diagnosis.objects.filter(patient_id=self.kwargs["patient_id"])
+        )
+
+    def perform_create(self, serializer):
+        patient = get_object_or_404(Patient, id=self.kwargs["patient_id"])
+        serializer.save(patient=patient)
+
+
+class DiagnosisDetailView(generics.RetrieveUpdateAPIView):
+    queryset = Diagnosis.objects.all()
+    serializer_class = DiagnosisSerializer
     permission_classes = [ViewModelPermissions]
 
 

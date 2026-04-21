@@ -1,5 +1,16 @@
+from django.db.models import Case, IntegerField, Value, When
 from rest_framework import serializers
-from .models import Allergy, Medication, Patient, Visit, Vital
+from .models import Allergy, Diagnosis, Medication, Patient, Visit, Vital
+
+
+def order_diagnoses(queryset):
+    return queryset.annotate(
+        current_sort=Case(
+            When(status=Diagnosis.Status.CURRENT, then=Value(0)),
+            default=Value(1),
+            output_field=IntegerField(),
+        )
+    ).order_by("current_sort", "-date_diagnosed", "name")
 
 
 class VitalSerializer(serializers.ModelSerializer):
@@ -57,6 +68,25 @@ class MedicationSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "patient", "created_at", "updated_at"]
 
 
+class DiagnosisSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Diagnosis
+        fields = [
+            "id",
+            "patient",
+            "name",
+            "status",
+            "date_diagnosed",
+            "diagnosis_code",
+            "provider_name",
+            "resolution_date",
+            "notes",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "patient", "created_at", "updated_at"]
+
+
 class AllergySerializer(serializers.ModelSerializer):
     class Meta:
         model = Allergy
@@ -100,9 +130,14 @@ class PatientSerializer(serializers.ModelSerializer):
 
 class PatientDetailSerializer(serializers.ModelSerializer):
     medications = MedicationSerializer(many=True, read_only=True)
+    diagnoses = serializers.SerializerMethodField()
     allergies = AllergySerializer(many=True, read_only=True)
     visits = VisitSerializer(many=True, read_only=True)
     latest_vitals = serializers.SerializerMethodField()
+
+    def get_diagnoses(self, patient):
+        diagnoses = order_diagnoses(patient.diagnoses.all())
+        return DiagnosisSerializer(diagnoses, many=True).data
 
     def get_latest_vitals(self, patient):
         latest = (
@@ -130,6 +165,7 @@ class PatientDetailSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "medications",
+            "diagnoses",
             "allergies",
             "visits",
             "latest_vitals",

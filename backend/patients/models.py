@@ -68,6 +68,36 @@ class Medication(models.Model):
         return f"{self.name} for {self.patient}"
 
 
+class Diagnosis(models.Model):
+    class Status(models.TextChoices):
+        CURRENT = "current", "Current"
+        CHRONIC = "chronic", "Chronic"
+        REMISSION = "remission", "Remission"
+        RESOLVED = "resolved", "Resolved"
+
+    patient = models.ForeignKey(Patient, related_name="diagnoses", on_delete=models.CASCADE)
+    name = models.CharField(max_length=150)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.CURRENT,
+    )
+    date_diagnosed = models.DateField()
+    diagnosis_code = models.CharField(max_length=30, blank=True)
+    provider_name = models.CharField(max_length=150, blank=True)
+    resolution_date = models.DateField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-date_diagnosed", "name"]
+
+    def __str__(self):
+        return f"{self.name} diagnosis for {self.patient}"
+
+
 class Allergy(models.Model):
     patient = models.ForeignKey(Patient, related_name="allergies", on_delete=models.CASCADE)
     substance = models.CharField(max_length=150)

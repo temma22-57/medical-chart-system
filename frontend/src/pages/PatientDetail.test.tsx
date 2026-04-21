@@ -30,6 +30,18 @@ describe("PatientDetail", () => {
           frequency: "Daily",
         },
       ],
+      diagnoses: [
+        {
+          id: 8,
+          patient: 7,
+          name: "Hypertension",
+          status: "current",
+          date_diagnosed: "2026-04-01",
+          diagnosis_code: "I10",
+          provider_name: "Dr. Smith",
+          notes: "Monitor blood pressure.",
+        },
+      ],
       allergies: [
         {
           id: 4,
@@ -80,6 +92,9 @@ describe("PatientDetail", () => {
     expect(screen.getByText(/primary language/i)).toBeInTheDocument();
     expect(screen.getByText("English")).toBeInTheDocument();
     expect(screen.getByText("122/78")).toBeInTheDocument();
+    expect(screen.getByText("Hypertension")).toBeInTheDocument();
+    expect(screen.getByText("current")).toBeInTheDocument();
+    expect(screen.getByText("I10")).toBeInTheDocument();
     expect(screen.getByText("Lisinopril")).toBeInTheDocument();
     expect(screen.getByText("Penicillin")).toBeInTheDocument();
     expect(screen.getByText("Medication review.")).toBeInTheDocument();

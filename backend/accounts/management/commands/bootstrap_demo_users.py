@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
 from django.core.management.base import BaseCommand
 
-from patients.models import Allergy, Medication, Patient, Visit, Vital
+from patients.models import Allergy, Diagnosis, Medication, Patient, Visit, Vital
 
 
 class Command(BaseCommand):
@@ -22,6 +22,9 @@ class Command(BaseCommand):
                 "view_medication",
                 "add_medication",
                 "change_medication",
+                "view_diagnosis",
+                "add_diagnosis",
+                "change_diagnosis",
                 "view_allergy",
                 "add_allergy",
                 "change_allergy",
@@ -36,6 +39,7 @@ class Command(BaseCommand):
                 "view_patient",
                 "view_visit",
                 "view_medication",
+                "view_diagnosis",
                 "view_allergy",
                 "view_vital",
             ],
@@ -133,6 +137,25 @@ class Command(BaseCommand):
                     "frequency": "As needed",
                 },
             ],
+            diagnoses=[
+                {
+                    "name": "Hypertension",
+                    "status": Diagnosis.Status.CURRENT,
+                    "date_diagnosed": "2026-03-15",
+                    "diagnosis_code": "I10",
+                    "provider_name": "Dr. Morgan Patel",
+                    "notes": "Monitor blood pressure and medication response.",
+                },
+                {
+                    "name": "Tension headache",
+                    "status": Diagnosis.Status.RESOLVED,
+                    "date_diagnosed": "2026-03-15",
+                    "diagnosis_code": "G44.209",
+                    "provider_name": "Dr. Morgan Patel",
+                    "resolution_date": "2026-04-10",
+                    "notes": "Symptoms improved with conservative care.",
+                },
+            ],
             allergies=[
                 {
                     "substance": "Penicillin",
@@ -166,6 +189,24 @@ class Command(BaseCommand):
                     "frequency": "As needed",
                 }
             ],
+            diagnoses=[
+                {
+                    "name": "Asthma",
+                    "status": Diagnosis.Status.CHRONIC,
+                    "date_diagnosed": "2024-08-18",
+                    "diagnosis_code": "J45.909",
+                    "provider_name": "Dr. Elena Smith",
+                    "notes": "Controlled with rescue inhaler.",
+                },
+                {
+                    "name": "Seasonal allergic rhinitis",
+                    "status": Diagnosis.Status.CURRENT,
+                    "date_diagnosed": "2026-04-12",
+                    "diagnosis_code": "J30.2",
+                    "provider_name": "Dr. Elena Smith",
+                    "notes": "Spring pollen triggers congestion.",
+                },
+            ],
             allergies=[
                 {
                     "substance": "Latex",
@@ -178,7 +219,7 @@ class Command(BaseCommand):
             ],
         )
 
-    def create_related_records(self, patient, visits, medications, allergies):
+    def create_related_records(self, patient, visits, medications, diagnoses, allergies):
         for visit_data in visits:
             vitals_data = visit_data.pop("vitals")
             visit, _ = Visit.objects.update_or_create(
@@ -209,6 +250,20 @@ class Command(BaseCommand):
                 defaults={
                     "dosage": medication_data["dosage"],
                     "frequency": medication_data["frequency"],
+                },
+            )
+
+        for diagnosis_data in diagnoses:
+            Diagnosis.objects.update_or_create(
+                patient=patient,
+                name=diagnosis_data["name"],
+                date_diagnosed=diagnosis_data["date_diagnosed"],
+                defaults={
+                    "status": diagnosis_data["status"],
+                    "diagnosis_code": diagnosis_data.get("diagnosis_code", ""),
+                    "provider_name": diagnosis_data.get("provider_name", ""),
+                    "resolution_date": diagnosis_data.get("resolution_date"),
+                    "notes": diagnosis_data.get("notes", ""),
                 },
             )
 

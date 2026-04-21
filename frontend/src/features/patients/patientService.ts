@@ -48,6 +48,20 @@ export interface Medication {
   updated_at?: string;
 }
 
+export interface Diagnosis {
+  id: number;
+  patient: number;
+  name: string;
+  status: string;
+  date_diagnosed: string;
+  diagnosis_code?: string;
+  provider_name?: string;
+  resolution_date?: string | null;
+  notes?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface Allergy {
   id: number;
   patient: number;
@@ -60,6 +74,7 @@ export interface Allergy {
 export interface PatientDetail extends Patient {
   id: number;
   medications: Medication[];
+  diagnoses: Diagnosis[];
   allergies: Allergy[];
   visits: Visit[];
   latest_vitals: Vital | null;
@@ -76,6 +91,16 @@ export interface MedicationPayload {
   name: string;
   dosage: string;
   frequency: string;
+}
+
+export interface DiagnosisPayload {
+  name: string;
+  status: string;
+  date_diagnosed: string;
+  diagnosis_code?: string;
+  provider_name?: string;
+  resolution_date?: string;
+  notes?: string;
 }
 
 export interface AllergyPayload {
@@ -142,6 +167,22 @@ export const updateMedication = async (
   medication: Partial<MedicationPayload>,
 ): Promise<Medication> => {
   const res = await api.patch(`/medications/${medicationId}/`, medication);
+  return res.data;
+};
+
+export const createDiagnosis = async (
+  patientId: number,
+  diagnosis: DiagnosisPayload,
+): Promise<Diagnosis> => {
+  const res = await api.post(`/patients/${patientId}/diagnoses/`, diagnosis);
+  return res.data;
+};
+
+export const updateDiagnosis = async (
+  diagnosisId: number,
+  diagnosis: Partial<DiagnosisPayload>,
+): Promise<Diagnosis> => {
+  const res = await api.patch(`/diagnoses/${diagnosisId}/`, diagnosis);
   return res.data;
 };
 

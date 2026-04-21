@@ -153,6 +153,26 @@ function App() {
           }
         />
         <Route
+          path="/patients/:id/diagnoses/new"
+          element={
+            isAdmin ? (
+              <Navigate to="/admin/users" replace />
+            ) : (
+              <PatientRelatedRecordFormPage recordType="diagnoses" mode="add" />
+            )
+          }
+        />
+        <Route
+          path="/patients/:id/diagnoses/:recordId/edit"
+          element={
+            isAdmin ? (
+              <Navigate to="/admin/users" replace />
+            ) : (
+              <PatientRelatedRecordFormPage recordType="diagnoses" mode="edit" />
+            )
+          }
+        />
+        <Route
           path="/patients/:id/allergies/new"
           element={
             isAdmin ? (

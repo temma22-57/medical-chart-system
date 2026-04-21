@@ -18,6 +18,7 @@ import {
 import { getPatient } from "../features/patients/patientService";
 import type {
   Allergy,
+  Diagnosis,
   Medication,
   PatientDetail as PatientDetailType,
   Visit,
@@ -165,6 +166,64 @@ function MedicationsCard({
                     <Button
                       component={RouterLink}
                       to={`/patients/${patientId}/medications/${medication.id}/edit`}
+                      size="small"
+                    >
+                      Edit
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function DiagnosesCard({
+  patientId,
+  diagnoses,
+}: {
+  patientId: number;
+  diagnoses: Diagnosis[];
+}) {
+  return (
+    <Card variant="outlined" sx={chartCardSx}>
+      <CardHeader
+        title={<SectionTitle addTo={`/patients/${patientId}/diagnoses/new`} title="Diagnoses" />}
+      />
+      <CardContent>
+        {diagnoses.length === 0 ? (
+          <EmptyState>No diagnoses recorded.</EmptyState>
+        ) : (
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Name</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Date Diagnosed</TableCell>
+                <TableCell>Code</TableCell>
+                <TableCell>Provider</TableCell>
+                <TableCell>Notes</TableCell>
+                <TableCell>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {diagnoses.map((diagnosis) => (
+                <TableRow key={diagnosis.id}>
+                  <TableCell>{diagnosis.name}</TableCell>
+                  <TableCell>{diagnosis.status}</TableCell>
+                  <TableCell>{diagnosis.date_diagnosed}</TableCell>
+                  <TableCell>{displayValue(diagnosis.diagnosis_code)}</TableCell>
+                  <TableCell>{displayValue(diagnosis.provider_name)}</TableCell>
+                  <TableCell>
+                    <Box sx={notesClampSx}>{displayValue(diagnosis.notes)}</Box>
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      component={RouterLink}
+                      to={`/patients/${patientId}/diagnoses/${diagnosis.id}/edit`}
                       size="small"
                     >
                       Edit
@@ -330,6 +389,7 @@ export default function PatientDetail() {
       <Stack spacing={2}>
         <VisitsCard patientId={patient.id} visits={patient.visits} />
         <MedicationsCard patientId={patient.id} medications={patient.medications} />
+        <DiagnosesCard patientId={patient.id} diagnoses={patient.diagnoses} />
         <AllergiesCard patientId={patient.id} allergies={patient.allergies} />
       </Stack>
     </Stack>

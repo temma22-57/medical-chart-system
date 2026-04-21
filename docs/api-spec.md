@@ -317,7 +317,7 @@ Notes:
 
 ### GET `/api/patients/{id}/`
 
-Retrieves a patient detail record with related medications, allergies, visits, visit vitals, and latest vitals.
+Retrieves a patient detail record with related medications, diagnoses, allergies, visits, visit vitals, and latest vitals.
 
 Auth required: yes
 
@@ -343,6 +343,21 @@ Response:
       "name": "Lisinopril",
       "dosage": "10 mg",
       "frequency": "Daily",
+      "created_at": "2026-04-15T04:18:00Z",
+      "updated_at": "2026-04-15T04:18:00Z"
+    }
+  ],
+  "diagnoses": [
+    {
+      "id": 1,
+      "patient": 1,
+      "name": "Hypertension",
+      "status": "current",
+      "date_diagnosed": "2026-03-15",
+      "diagnosis_code": "I10",
+      "provider_name": "Dr. Morgan Patel",
+      "resolution_date": null,
+      "notes": "Monitor blood pressure and medication response.",
       "created_at": "2026-04-15T04:18:00Z",
       "updated_at": "2026-04-15T04:18:00Z"
     }
@@ -585,6 +600,91 @@ Patch request:
 ```
 
 Response: updated medication object.
+
+## Diagnosis Endpoints
+
+### GET `/api/patients/{patient_id}/diagnoses/`
+
+Lists diagnoses for a patient.
+
+Auth required: yes
+
+Permission required: `patients.view_diagnosis`
+
+Ordering: current diagnoses first, then newest diagnosis date first.
+
+Response:
+
+```json
+[
+  {
+    "id": 1,
+    "patient": 1,
+    "name": "Hypertension",
+    "status": "current",
+    "date_diagnosed": "2026-03-15",
+    "diagnosis_code": "I10",
+    "provider_name": "Dr. Morgan Patel",
+    "resolution_date": null,
+    "notes": "Monitor blood pressure and medication response.",
+    "created_at": "2026-04-15T04:18:00Z",
+    "updated_at": "2026-04-15T04:18:00Z"
+  }
+]
+```
+
+### POST `/api/patients/{patient_id}/diagnoses/`
+
+Creates a diagnosis for a patient.
+
+Auth required: yes
+
+Permission required: `patients.add_diagnosis`
+
+Request:
+
+```json
+{
+  "name": "Hypertension",
+  "status": "current",
+  "date_diagnosed": "2026-03-15",
+  "diagnosis_code": "I10",
+  "provider_name": "Dr. Morgan Patel",
+  "resolution_date": null,
+  "notes": "Monitor blood pressure and medication response."
+}
+```
+
+Response: diagnosis object.
+
+### GET `/api/diagnoses/{id}/`
+
+Retrieves one diagnosis.
+
+Auth required: yes
+
+Permission required: `patients.view_diagnosis`
+
+Response: diagnosis object.
+
+### PUT/PATCH `/api/diagnoses/{id}/`
+
+Updates one diagnosis.
+
+Auth required: yes
+
+Permission required: `patients.change_diagnosis`
+
+Patch request:
+
+```json
+{
+  "status": "resolved",
+  "resolution_date": "2026-04-20"
+}
+```
+
+Response: updated diagnosis object.
 
 ## Allergy Endpoints
 

@@ -14,6 +14,7 @@ auth.User
 Patient
   one-to-many Visit
   one-to-many Medication
+  one-to-many Diagnosis
   one-to-many Allergy
 
 Visit
@@ -27,6 +28,9 @@ Vital
 Medication
   many-to-one Patient
 
+Diagnosis
+  many-to-one Patient
+
 Allergy
   many-to-one Patient
 ```
@@ -38,8 +42,8 @@ Django provides the user, group, and permission tables.
 Important project usage:
 
 - `Admin` group has no patient-domain permissions and is used by custom API permissions for user-management endpoints.
-- `Doctor` group has view/add/change permissions for patients, visits, medications, allergies, and vitals.
-- `Nurse` group has view permissions for patients, visits, medications, allergies, and vitals.
+- `Doctor` group has view/add/change permissions for patients, visits, medications, diagnoses, allergies, and vitals.
+- `Nurse` group has view permissions for patients, visits, medications, diagnoses, allergies, and vitals.
 - DRF token authentication stores API tokens in the `authtoken_token` table.
 
 ## Patient
@@ -66,6 +70,7 @@ Relationships:
 
 - `Patient.visits` returns related visits.
 - `Patient.medications` returns related medications.
+- `Patient.diagnoses` returns related diagnoses.
 - `Patient.allergies` returns related allergies.
 
 Duplicate rule:
@@ -171,6 +176,39 @@ Relationships:
 - Each medication belongs to exactly one patient.
 - A patient can have many medications.
 
+## Diagnosis
+
+Django model: `patients.models.Diagnosis`
+
+Purpose: records a patient diagnosis or medical condition.
+
+Fields:
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `id` | Auto primary key | Django default primary key |
+| `patient` | `ForeignKey(Patient, related_name="diagnoses", on_delete=CASCADE)` | Required |
+| `name` | `CharField(max_length=150)` | Required |
+| `status` | `CharField(max_length=20)` | Required; choices are `current`, `chronic`, `remission`, `resolved` |
+| `date_diagnosed` | `DateField()` | Required |
+| `diagnosis_code` | `CharField(max_length=30, blank=True)` | Optional ICD-style code placeholder |
+| `provider_name` | `CharField(max_length=150, blank=True)` | Optional text attribution |
+| `resolution_date` | `DateField(null=True, blank=True)` | Optional |
+| `notes` | `TextField(blank=True)` | Optional |
+| `created_at` | `DateTimeField(auto_now_add=True)` | Created timestamp |
+| `updated_at` | `DateTimeField(auto_now=True)` | Updated timestamp |
+
+API ordering:
+
+```text
+current status first, then -date_diagnosed, then name
+```
+
+Relationships:
+
+- Each diagnosis belongs to exactly one patient.
+- A patient can have many diagnoses.
+
 ## Allergy
 
 Django model: `patients.models.Allergy`
@@ -205,7 +243,7 @@ Patient-domain foreign keys use `on_delete=models.CASCADE`.
 
 Practical effect:
 
-- Deleting a patient deletes their visits, medications, and allergies.
+- Deleting a patient deletes their visits, medications, diagnoses, and allergies.
 - Deleting a visit deletes its vitals.
 
 The current API does not expose delete endpoints, but the database relationship behavior is still part of the model design.
@@ -213,6 +251,7 @@ The current API does not expose delete endpoints, but the database relationship 
 ## Current Schema Limitations
 
 - Doctor and staff attribution on visits are text fields, not foreign keys to user/staff profiles.
+- Diagnosis provider attribution is stored as text, not linked to user accounts.
 - Vitals are visit-level records but are not constrained to one record per visit.
 - There is no audit log table yet.
 - There are no separate treatment/procedure tables yet.

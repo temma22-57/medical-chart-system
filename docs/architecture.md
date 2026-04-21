@@ -48,7 +48,7 @@ The Django backend owns:
 - Token-based login/logout/current-user endpoints.
 - Admin-only user-management endpoints.
 - Role-aware patient-domain API permissions.
-- Patient, visit, medication, allergy, and vital APIs.
+- Patient, visit, medication, diagnosis, allergy, and vital APIs.
 - Demo user and demo patient-data bootstrapping.
 
 Important backend files:
@@ -73,8 +73,8 @@ The React frontend owns:
 - Login page.
 - Authenticated layout with navigation and patient search.
 - Patient list and patient create page.
-- Patient detail dashboard with demographics, latest vitals, visits, medications, and allergies.
-- Add/edit flows for visits, medications, allergies, and adding vitals to visits.
+- Patient detail dashboard with demographics, latest vitals, visits, medications, diagnoses, and allergies.
+- Add/edit flows for visits, medications, diagnoses, allergies, and adding vitals to visits.
 - API calls through an axios service layer.
 
 Important frontend files:
@@ -107,6 +107,8 @@ Current routes:
 /patients/:id/visits/:recordId/vitals/new
 /patients/:id/medications/new
 /patients/:id/medications/:recordId/edit
+/patients/:id/diagnoses/new
+/patients/:id/diagnoses/:recordId/edit
 /patients/:id/allergies/new
 /patients/:id/allergies/:recordId/edit
 ```
@@ -136,7 +138,7 @@ PatientDetail page
   -> PatientDetailView
   -> PatientDetailSerializer
   -> PostgreSQL Patient + related records
-  -> JSON response with medications, allergies, visits, latest_vitals
+  -> JSON response with medications, diagnoses, allergies, visits, latest_vitals
 ```
 
 ## Database Role

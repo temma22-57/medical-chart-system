@@ -4,7 +4,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from .models import Allergy, Medication, Patient, Visit, Vital
+from .models import Allergy, Diagnosis, Medication, Patient, Visit, Vital
 from .serializers import PatientDetailSerializer, PatientSerializer, VisitSerializer
 
 
@@ -48,6 +48,12 @@ class PatientRelationshipTests(APITestCase):
             dosage="500 mg",
             frequency="Twice daily",
         )
+        Diagnosis.objects.create(
+            patient=patient,
+            name="Type 2 diabetes",
+            status=Diagnosis.Status.CURRENT,
+            date_diagnosed="2026-04-12",
+        )
         Allergy.objects.create(
             patient=patient,
             substance="Penicillin",
@@ -62,6 +68,7 @@ class PatientRelationshipTests(APITestCase):
         )
 
         self.assertEqual(patient.medications.count(), 1)
+        self.assertEqual(patient.diagnoses.count(), 1)
         self.assertEqual(patient.allergies.count(), 1)
         self.assertEqual(patient.visits.count(), 1)
 
@@ -182,6 +189,9 @@ class PatientApiTests(APITestCase):
                 "view_medication",
                 "add_medication",
                 "change_medication",
+                "view_diagnosis",
+                "add_diagnosis",
+                "change_diagnosis",
                 "view_allergy",
                 "add_allergy",
                 "change_allergy",
@@ -196,6 +206,7 @@ class PatientApiTests(APITestCase):
                 "view_patient",
                 "view_visit",
                 "view_medication",
+                "view_diagnosis",
                 "view_allergy",
                 "view_vital",
             ],
@@ -222,6 +233,12 @@ class PatientApiTests(APITestCase):
             dosage="10 mg",
             frequency="Daily",
         )
+        diagnosis = Diagnosis.objects.create(
+            patient=patient,
+            name="Hypertension",
+            status=Diagnosis.Status.CURRENT,
+            date_diagnosed="2026-04-13",
+        )
         allergy = Allergy.objects.create(patient=patient, substance="Latex")
         vital = Vital.objects.create(
             visit=visit,
@@ -239,6 +256,8 @@ class PatientApiTests(APITestCase):
             reverse("visit-detail", kwargs={"pk": visit.id}),
             reverse("patient-medications", kwargs={"patient_id": patient.id}),
             reverse("medication-detail", kwargs={"pk": medication.id}),
+            reverse("patient-diagnoses", kwargs={"patient_id": patient.id}),
+            reverse("diagnosis-detail", kwargs={"pk": diagnosis.id}),
             reverse("patient-allergies", kwargs={"patient_id": patient.id}),
             reverse("allergy-detail", kwargs={"pk": allergy.id}),
             reverse("patient-latest-vitals", kwargs={"patient_id": patient.id}),
@@ -325,6 +344,13 @@ class PatientApiTests(APITestCase):
             dosage="10 mg",
             frequency="Daily",
         )
+        Diagnosis.objects.create(
+            patient=patient,
+            name="Hypertension",
+            status=Diagnosis.Status.CURRENT,
+            date_diagnosed="2026-04-10",
+            diagnosis_code="I10",
+        )
         Allergy.objects.create(patient=patient, substance="Latex", reaction="Hives")
         visit = Visit.objects.create(
             patient=patient,
@@ -349,6 +375,8 @@ class PatientApiTests(APITestCase):
         self.assertEqual(response.data["first_name"], "Jordan")
         self.assertIn("primary_language", response.data)
         self.assertEqual(response.data["medications"][0]["name"], "Lisinopril")
+        self.assertEqual(response.data["diagnoses"][0]["name"], "Hypertension")
+        self.assertEqual(response.data["diagnoses"][0]["diagnosis_code"], "I10")
         self.assertEqual(response.data["allergies"][0]["substance"], "Latex")
         self.assertEqual(response.data["visits"][0]["primary_care_physician"], "Dr. Nguyen")
         self.assertEqual(response.data["visits"][0]["vitals"][0]["blood_pressure"], "118/76")
@@ -413,6 +441,60 @@ class PatientApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         visit.refresh_from_db()
         self.assertEqual(visit.notes, "Medication review.")
+
+    def test_create_and_list_diagnoses_current_first(self):
+        self.client.force_authenticate(user=self.doctor)
+        patient = Patient.objects.create(first_name="Casey", last_name="Rivera")
+        Diagnosis.objects.create(
+            patient=patient,
+            name="Migraine",
+            status=Diagnosis.Status.RESOLVED,
+            date_diagnosed="2026-04-20",
+        )
+        payload = {
+            "name": "Hypertension",
+            "status": Diagnosis.Status.CURRENT,
+            "date_diagnosed": "2026-03-10",
+            "diagnosis_code": "I10",
+            "provider_name": "Dr. Smith",
+            "notes": "Monitor blood pressure.",
+        }
+
+        create_response = self.client.post(
+            reverse("patient-diagnoses", kwargs={"patient_id": patient.id}),
+            payload,
+            format="json",
+        )
+        list_response = self.client.get(
+            reverse("patient-diagnoses", kwargs={"patient_id": patient.id})
+        )
+
+        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(patient.diagnoses.count(), 2)
+        self.assertEqual(list_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(list_response.data[0]["name"], "Hypertension")
+        self.assertEqual(list_response.data[0]["status"], Diagnosis.Status.CURRENT)
+
+    def test_doctor_can_update_diagnosis(self):
+        self.client.force_authenticate(user=self.doctor)
+        patient = Patient.objects.create(first_name="Casey", last_name="Rivera")
+        diagnosis = Diagnosis.objects.create(
+            patient=patient,
+            name="Asthma",
+            status=Diagnosis.Status.CURRENT,
+            date_diagnosed="2026-04-13",
+        )
+
+        response = self.client.patch(
+            reverse("diagnosis-detail", kwargs={"pk": diagnosis.id}),
+            {"status": Diagnosis.Status.RESOLVED, "resolution_date": "2026-04-20"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        diagnosis.refresh_from_db()
+        self.assertEqual(diagnosis.status, Diagnosis.Status.RESOLVED)
+        self.assertEqual(str(diagnosis.resolution_date), "2026-04-20")
 
     def test_create_vitals_for_visit(self):
         self.client.force_authenticate(user=self.doctor)
