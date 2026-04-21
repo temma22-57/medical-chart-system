@@ -21,6 +21,7 @@ interface NewUserForm {
   first_name: string;
   last_name: string;
   email: string;
+  phone: string;
   role: RoleName;
 }
 
@@ -30,6 +31,7 @@ const initialForm: NewUserForm = {
   first_name: "",
   last_name: "",
   email: "",
+  phone: "",
   role: "Nurse",
 };
 
@@ -60,6 +62,9 @@ export default function UserManagementPage({ currentUser }: UserManagementPagePr
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [form, setForm] = useState<NewUserForm>(initialForm);
   const [passwords, setPasswords] = useState<Record<number, string>>({});
+  const [contactDrafts, setContactDrafts] = useState<
+    Record<number, { email: string; phone: string }>
+  >({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -70,7 +75,19 @@ export default function UserManagementPage({ currentUser }: UserManagementPagePr
     setError("");
 
     try {
-      setUsers(await getManagedUsers());
+      const loadedUsers = await getManagedUsers();
+      setUsers(loadedUsers);
+      setContactDrafts(
+        Object.fromEntries(
+          loadedUsers.map((user) => [
+            user.id,
+            {
+              email: user.email || "",
+              phone: user.phone || "",
+            },
+          ]),
+        ),
+      );
     } catch (loadError) {
       setError(getErrorMessage(loadError));
     } finally {
@@ -107,6 +124,23 @@ export default function UserManagementPage({ currentUser }: UserManagementPagePr
     try {
       await updateManagedUser(user.id, { role });
       setMessage(`Updated ${user.username}.`);
+      await loadUsers();
+    } catch (updateError) {
+      setError(getErrorMessage(updateError));
+    }
+  };
+
+  const handleContactSave = async (user: ManagedUser) => {
+    const draft = contactDrafts[user.id] || { email: user.email || "", phone: user.phone || "" };
+    setError("");
+    setMessage("");
+
+    try {
+      await updateManagedUser(user.id, {
+        email: draft.email,
+        phone: draft.phone,
+      });
+      setMessage(`Updated MFA contact details for ${user.username}.`);
       await loadUsers();
     } catch (updateError) {
       setError(getErrorMessage(updateError));
@@ -154,6 +188,7 @@ export default function UserManagementPage({ currentUser }: UserManagementPagePr
     <section style={{ textAlign: "left" }}>
       <h2>User Management</h2>
       <p>Admin users can manage application accounts but cannot access patient records.</p>
+      <p>Email is the only MFA delivery method. Phone is stored as employee contact information only.</p>
 
       <h3>Create User</h3>
       <form onSubmit={handleCreate}>
@@ -205,6 +240,17 @@ export default function UserManagementPage({ currentUser }: UserManagementPagePr
               onChange={(event) => setForm({ ...form, email: event.target.value })}
             />
           </label>
+          <p style={{ marginTop: 4 }}>Used for MFA email delivery when configured.</p>
+        </div>
+        <div>
+          <label>
+            Phone
+            <input
+              value={form.phone}
+              onChange={(event) => setForm({ ...form, phone: event.target.value })}
+            />
+          </label>
+          <p style={{ marginTop: 4 }}>Stored for employee contact information only.</p>
         </div>
         <div>
           <label>
@@ -236,6 +282,8 @@ export default function UserManagementPage({ currentUser }: UserManagementPagePr
               <th>Username</th>
               <th>Name</th>
               <th>Email</th>
+              <th>Phone</th>
+              <th>Save Contact Info</th>
               <th>Role</th>
               <th>Reset Password</th>
               <th>Delete</th>
@@ -248,7 +296,40 @@ export default function UserManagementPage({ currentUser }: UserManagementPagePr
                 <td>
                   {user.first_name} {user.last_name}
                 </td>
-                <td>{user.email}</td>
+                <td>
+                  <input
+                    type="email"
+                    value={contactDrafts[user.id]?.email ?? user.email}
+                    onChange={(event) =>
+                      setContactDrafts({
+                        ...contactDrafts,
+                        [user.id]: {
+                          email: event.target.value,
+                          phone: contactDrafts[user.id]?.phone ?? user.phone ?? "",
+                        },
+                      })
+                    }
+                  />
+                </td>
+                <td>
+                  <input
+                    value={contactDrafts[user.id]?.phone ?? user.phone}
+                    onChange={(event) =>
+                      setContactDrafts({
+                        ...contactDrafts,
+                        [user.id]: {
+                          email: contactDrafts[user.id]?.email ?? user.email ?? "",
+                          phone: event.target.value,
+                        },
+                      })
+                    }
+                  />
+                </td>
+                <td>
+                  <button type="button" onClick={() => handleContactSave(user)}>
+                    Save
+                  </button>
+                </td>
                 <td>
                   <select
                     value={(user.roles[0] || "Nurse") as RoleName}

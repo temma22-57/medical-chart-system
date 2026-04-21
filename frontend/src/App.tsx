@@ -14,6 +14,7 @@ import VisitVitalsFormPage from "./pages/VisitVitalsFormPage";
 function App() {
   const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [authNotice, setAuthNotice] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -39,11 +40,13 @@ function App() {
   const handleLogout = async () => {
     await logout();
     setCurrentUser(null);
+    setAuthNotice("");
     navigate("/login");
   };
 
-  const handleLogin = (user: CurrentUser) => {
+  const handleLogin = (user: CurrentUser, notice?: string) => {
     setCurrentUser(user);
+    setAuthNotice(notice || "");
     navigate(user.roles.includes("Admin") ? "/admin/users" : "/patients");
   };
 
@@ -68,7 +71,12 @@ function App() {
       <Route
         element={
           currentUser ? (
-            <AuthenticatedLayout currentUser={currentUser} onLogout={handleLogout} />
+            <AuthenticatedLayout
+              currentUser={currentUser}
+              authNotice={authNotice}
+              onDismissAuthNotice={() => setAuthNotice("")}
+              onLogout={handleLogout}
+            />
           ) : (
             <Navigate to="/login" replace />
           )

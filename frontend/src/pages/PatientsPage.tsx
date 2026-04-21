@@ -40,7 +40,7 @@ export default function PatientsPage({ currentUser }: PatientsPageProps) {
       </div>
 
       {!canCreatePatients && (
-        <p>Nurse access is read-only for patient records in this prototype.</p>
+        <p>Nurses can view patient charts and add visit or patient-domain records where allowed.</p>
       )}
 
       {error && <p>{error}</p>}

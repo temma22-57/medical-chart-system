@@ -7,10 +7,19 @@ from rest_framework.views import APIView
 
 from django.contrib.auth import get_user_model
 
+from .mfa import (
+    MfaError,
+    get_available_methods,
+    resend_code,
+    start_login_mfa,
+    verify_code,
+)
 from .serializers import (
     LoginSerializer,
     ManagedUserSerializer,
     ManagedUserWriteSerializer,
+    MfaResendSerializer,
+    MfaVerificationSerializer,
     PasswordResetSerializer,
     UserSerializer,
 )
@@ -33,14 +42,74 @@ class LoginView(APIView):
         serializer = LoginSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data["user"]
-        token, _ = Token.objects.get_or_create(user=user)
+        methods = get_available_methods(user)
 
+        if not methods:
+            Token.objects.filter(user=user).delete()
+            token = Token.objects.create(user=user)
+            return Response(
+                {
+                    "token": token.key,
+                    "user": UserSerializer(user).data,
+                    "mfa_required": False,
+                    "warning": (
+                        "No MFA email is configured for this account. "
+                        "Please contact an administrator or update your account information "
+                        "to add an email address for MFA."
+                    ),
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        try:
+            mfa_response = start_login_mfa(user)
+        except MfaError as exc:
+            return Response(exc.as_response_data(), status=exc.status_code)
+
+        return Response(mfa_response, status=status.HTTP_200_OK)
+
+
+class MfaResendView(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = MfaResendSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            response_data = resend_code(serializer.validated_data["challenge_id"])
+        except MfaError as exc:
+            return Response(exc.as_response_data(), status=exc.status_code)
+
+        return Response(response_data, status=status.HTTP_200_OK)
+
+
+class MfaVerificationView(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = MfaVerificationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            user = verify_code(
+                serializer.validated_data["challenge_id"],
+                serializer.validated_data["code"],
+            )
+        except MfaError as exc:
+            return Response(exc.as_response_data(), status=exc.status_code)
+
+        Token.objects.filter(user=user).delete()
+        token = Token.objects.create(user=user)
         return Response(
             {
                 "token": token.key,
                 "user": UserSerializer(user).data,
                 "mfa_required": False,
-            }
+            },
+            status=status.HTTP_200_OK,
         )
 
 

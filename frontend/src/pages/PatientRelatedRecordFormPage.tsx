@@ -3,13 +3,20 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   createAllergy,
   createMedication,
+  createVital,
   createVisit,
   getPatient,
   updateAllergy,
   updateMedication,
   updateVisit,
 } from "../features/patients/patientService";
-import type { Allergy, Medication, PatientDetail, Visit } from "../features/patients/patientService";
+import type {
+  Allergy,
+  Medication,
+  PatientDetail,
+  VitalPayload,
+  Visit,
+} from "../features/patients/patientService";
 
 type RecordType = "visits" | "medications" | "allergies";
 type FormValues = Record<string, string>;
@@ -43,6 +50,11 @@ const initialValues: Record<RecordType, FormValues> = {
     primary_care_physician: "",
     staff_assigned: "",
     notes: "",
+    height: "",
+    weight: "",
+    blood_pressure: "",
+    heart_rate: "",
+    temperature: "",
   },
   medications: {
     name: "",
@@ -106,6 +118,38 @@ function titleFor(recordType: RecordType) {
   return "Allergy";
 }
 
+const vitalFieldLabels: Record<keyof VitalPayload, string> = {
+  height: "Height",
+  weight: "Weight",
+  blood_pressure: "Blood pressure",
+  heart_rate: "Heart rate",
+  temperature: "Temperature",
+};
+
+const vitalFields = Object.entries(vitalFieldLabels) as [keyof VitalPayload, string][];
+
+function buildOptionalVitalPayload(values: FormValues): VitalPayload | null {
+  const vitalValues = vitalFields.map(([field]) => String(values[field] || "").trim());
+  const hasAnyVitals = vitalValues.some(Boolean);
+
+  if (!hasAnyVitals) {
+    return null;
+  }
+
+  const hasAllVitals = vitalValues.every(Boolean);
+  if (!hasAllVitals) {
+    throw new Error("complete_vitals_required");
+  }
+
+  return {
+    height: values.height.trim(),
+    weight: values.weight.trim(),
+    blood_pressure: values.blood_pressure.trim(),
+    heart_rate: Number(values.heart_rate),
+    temperature: values.temperature.trim(),
+  };
+}
+
 export default function PatientRelatedRecordFormPage({
   recordType,
   mode,
@@ -159,6 +203,23 @@ export default function PatientRelatedRecordFormPage({
     loadRecord();
   }, [mode, patientId, recordType, relatedRecordId]);
 
+  useEffect(() => {
+    if (mode !== "add" || !Number.isFinite(patientId)) {
+      return;
+    }
+
+    const loadPatient = async () => {
+      try {
+        const loadedPatient = await getPatient(patientId);
+        setPatient(loadedPatient);
+      } catch {
+        setError("Unable to load patient details.");
+      }
+    };
+
+    loadPatient();
+  }, [mode, patientId]);
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
@@ -178,7 +239,12 @@ export default function PatientRelatedRecordFormPage({
           notes: values.notes,
         };
         if (mode === "add") {
-          await createVisit(patientId, payload);
+          const visit = await createVisit(patientId, payload);
+          const vitalPayload = buildOptionalVitalPayload(values);
+
+          if (vitalPayload) {
+            await createVital(visit.id, vitalPayload);
+          }
         } else {
           await updateVisit(relatedRecordId, payload);
         }
@@ -206,8 +272,15 @@ export default function PatientRelatedRecordFormPage({
       }
 
       navigate(`/patients/${patientId}`);
-    } catch {
-      setError("Unable to save this record.");
+    } catch (caughtError) {
+      if (
+        caughtError instanceof Error &&
+        caughtError.message === "complete_vitals_required"
+      ) {
+        setError("If you enter any initial vitals, please complete all vitals fields.");
+      } else {
+        setError("Unable to save this record.");
+      }
     } finally {
       setSaving(false);
     }
@@ -219,6 +292,7 @@ export default function PatientRelatedRecordFormPage({
 
   const recordTitle = titleFor(recordType);
   const fields = Object.entries(fieldLabels[recordType]);
+  const showInitialVitalsFields = recordType === "visits" && mode === "add";
   const visitWithoutVitals =
     recordType === "visits" &&
     mode === "edit" &&
@@ -264,10 +338,37 @@ export default function PatientRelatedRecordFormPage({
             </label>
           </div>
         ))}
+        {showInitialVitalsFields && (
+          <>
+            <h3>Initial Vitals (Optional)</h3>
+            <p>
+              Leave all vitals blank to create the visit without vitals, or complete every vitals
+              field to save an initial vitals entry with this visit.
+            </p>
+            {vitalFields.map(([field, label]) => (
+              <div key={field} style={{ marginBottom: 12 }}>
+                <label>
+                  {label}
+                  <input
+                    type={field === "blood_pressure" ? "text" : "number"}
+                    step={field === "heart_rate" ? "1" : "0.01"}
+                    min={field === "heart_rate" ? "0" : undefined}
+                    value={values[field] || ""}
+                    onChange={(event) =>
+                      setValues({ ...values, [field]: event.target.value })
+                    }
+                    style={{ display: "block", width: "100%" }}
+                  />
+                </label>
+              </div>
+            ))}
+          </>
+        )}
         <button type="submit" disabled={saving}>
           {saving ? "Saving..." : mode === "add" ? `Add ${recordTitle}` : "Review and Save"}
         </button>
       </form>
+      {error && <p>{error}</p>}
       {mode === "edit" && (
         <p>Saving edits requires a confirmation step after you submit this form.</p>
       )}
@@ -279,7 +380,6 @@ export default function PatientRelatedRecordFormPage({
           </Link>
         </p>
       )}
-      {error && <p>{error}</p>}
     </section>
   );
 }

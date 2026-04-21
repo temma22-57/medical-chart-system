@@ -4,11 +4,15 @@ import type { CurrentUser } from "../features/auth/authService";
 
 interface AuthenticatedLayoutProps {
   currentUser: CurrentUser;
+  authNotice?: string;
+  onDismissAuthNotice: () => void;
   onLogout: () => void;
 }
 
 export default function AuthenticatedLayout({
   currentUser,
+  authNotice,
+  onDismissAuthNotice,
   onLogout,
 }: AuthenticatedLayoutProps) {
   const navigate = useNavigate();
@@ -47,6 +51,22 @@ export default function AuthenticatedLayout({
           </button>
         </div>
       </header>
+      {authNotice ? (
+        <div
+          style={{
+            background: "#fff7e6",
+            borderBottom: "1px solid #f2d28b",
+            color: "#6b4b00",
+            padding: "12px 20px",
+            textAlign: "left",
+          }}
+        >
+          <span>{authNotice}</span>
+          <button type="button" style={{ marginLeft: 12 }} onClick={onDismissAuthNotice}>
+            Dismiss
+          </button>
+        </div>
+      ) : null}
       <main style={{ padding: 20 }}>
         <Outlet />
       </main>

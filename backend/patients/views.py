@@ -3,7 +3,11 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404
 from rest_framework import generics
 from .models import Allergy, Medication, Patient, Visit, Vital
-from .permissions import ViewModelPermissions
+from .permissions import (
+    OwnedPatientRecordPermission,
+    PatientPermission,
+    VisitPermission,
+)
 from .serializers import (
     AllergySerializer,
     MedicationSerializer,
@@ -17,7 +21,7 @@ from .serializers import (
 class PatientListCreateView(generics.ListCreateAPIView):
     queryset = Patient.objects.all().order_by("-created_at")
     serializer_class = PatientSerializer
-    permission_classes = [ViewModelPermissions]
+    permission_classes = [PatientPermission]
 
     def get_queryset(self):
         queryset = Patient.objects.all().order_by("-created_at")
@@ -33,7 +37,7 @@ class PatientListCreateView(generics.ListCreateAPIView):
         return queryset.filter(query).distinct()
 
 
-class PatientDetailView(generics.RetrieveAPIView):
+class PatientDetailView(generics.RetrieveUpdateAPIView):
     queryset = Patient.objects.prefetch_related(
         "medications",
         "allergies",
@@ -41,12 +45,12 @@ class PatientDetailView(generics.RetrieveAPIView):
         "visits__vitals",
     )
     serializer_class = PatientDetailSerializer
-    permission_classes = [ViewModelPermissions]
+    permission_classes = [PatientPermission]
 
 
 class PatientLatestVitalsView(generics.RetrieveAPIView):
     serializer_class = VitalSerializer
-    permission_classes = [ViewModelPermissions]
+    permission_classes = [OwnedPatientRecordPermission]
 
     def get_queryset(self):
         return Vital.objects.filter(visit__patient_id=self.kwargs["patient_id"]).order_by(
@@ -68,7 +72,7 @@ class PatientLatestVitalsView(generics.RetrieveAPIView):
 
 class PatientVisitListCreateView(generics.ListCreateAPIView):
     serializer_class = VisitSerializer
-    permission_classes = [ViewModelPermissions]
+    permission_classes = [VisitPermission]
 
     def get_queryset(self):
         return Visit.objects.filter(patient_id=self.kwargs["patient_id"]).order_by(
@@ -84,12 +88,12 @@ class PatientVisitListCreateView(generics.ListCreateAPIView):
 class VisitDetailView(generics.RetrieveUpdateAPIView):
     queryset = Visit.objects.all()
     serializer_class = VisitSerializer
-    permission_classes = [ViewModelPermissions]
+    permission_classes = [VisitPermission]
 
 
 class PatientMedicationListCreateView(generics.ListCreateAPIView):
     serializer_class = MedicationSerializer
-    permission_classes = [ViewModelPermissions]
+    permission_classes = [OwnedPatientRecordPermission]
 
     def get_queryset(self):
         return Medication.objects.filter(patient_id=self.kwargs["patient_id"]).order_by(
@@ -104,12 +108,12 @@ class PatientMedicationListCreateView(generics.ListCreateAPIView):
 class MedicationDetailView(generics.RetrieveUpdateAPIView):
     queryset = Medication.objects.all()
     serializer_class = MedicationSerializer
-    permission_classes = [ViewModelPermissions]
+    permission_classes = [OwnedPatientRecordPermission]
 
 
 class PatientAllergyListCreateView(generics.ListCreateAPIView):
     serializer_class = AllergySerializer
-    permission_classes = [ViewModelPermissions]
+    permission_classes = [OwnedPatientRecordPermission]
 
     def get_queryset(self):
         return Allergy.objects.filter(patient_id=self.kwargs["patient_id"]).order_by(
@@ -124,12 +128,12 @@ class PatientAllergyListCreateView(generics.ListCreateAPIView):
 class AllergyDetailView(generics.RetrieveUpdateAPIView):
     queryset = Allergy.objects.all()
     serializer_class = AllergySerializer
-    permission_classes = [ViewModelPermissions]
+    permission_classes = [OwnedPatientRecordPermission]
 
 
 class VisitVitalListCreateView(generics.ListCreateAPIView):
     serializer_class = VitalSerializer
-    permission_classes = [ViewModelPermissions]
+    permission_classes = [OwnedPatientRecordPermission]
 
     def get_queryset(self):
         return Vital.objects.filter(visit_id=self.kwargs["visit_id"]).order_by(
@@ -145,4 +149,4 @@ class VisitVitalListCreateView(generics.ListCreateAPIView):
 class VitalDetailView(generics.RetrieveUpdateAPIView):
     queryset = Vital.objects.all()
     serializer_class = VitalSerializer
-    permission_classes = [ViewModelPermissions]
+    permission_classes = [OwnedPatientRecordPermission]

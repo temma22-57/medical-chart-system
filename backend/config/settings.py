@@ -32,6 +32,42 @@ def load_env_file(path):
         os.environ.setdefault(key, value)
 
 
+def get_env_bool(name, default=False):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def get_env_str(name, default=""):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip()
+
+
+def get_env_email_password(name, default=""):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+
+    password = value.strip()
+    return "".join(password.split())
+
+
+def get_env_int(name, default):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+load_env_file(BASE_DIR / ".env")
 load_env_file(BASE_DIR.parent / ".env")
 
 
@@ -45,7 +81,7 @@ SECRET_KEY = os.environ.get(
 )
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get("DJANGO_DEBUG", "True") == "True"
+DEBUG = get_env_bool("DJANGO_DEBUG", True)
 
 ALLOWED_HOSTS = []
 
@@ -160,3 +196,18 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ],
 }
+
+DEFAULT_FROM_EMAIL = get_env_str("DEFAULT_FROM_EMAIL", "no-reply@medical-chart.local")
+EMAIL_BACKEND = get_env_str(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.console.EmailBackend",
+)
+EMAIL_HOST = get_env_str("EMAIL_HOST", "localhost")
+EMAIL_PORT = get_env_int("EMAIL_PORT", 25)
+EMAIL_USE_TLS = get_env_bool("EMAIL_USE_TLS", False)
+EMAIL_HOST_USER = get_env_str("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = get_env_email_password("EMAIL_HOST_PASSWORD", "")
+
+MFA_CODE_TTL_MINUTES = get_env_int("MFA_CODE_TTL_MINUTES", 10)
+MFA_RESEND_THROTTLE_SECONDS = get_env_int("MFA_RESEND_THROTTLE_SECONDS", 30)
+MFA_MAX_FAILED_ATTEMPTS = get_env_int("MFA_MAX_FAILED_ATTEMPTS", 5)

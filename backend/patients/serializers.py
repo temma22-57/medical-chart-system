@@ -2,7 +2,27 @@ from rest_framework import serializers
 from .models import Allergy, Medication, Patient, Visit, Vital
 
 
-class VitalSerializer(serializers.ModelSerializer):
+def user_is_nurse(user):
+    return bool(
+        user
+        and user.is_authenticated
+        and user.groups.filter(name="Nurse").exists()
+    )
+
+
+class AuthoredModelSerializer(serializers.ModelSerializer):
+    def create(self, validated_data):
+        user = self.context["request"].user
+        validated_data["created_by"] = user
+        validated_data["updated_by"] = user
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        validated_data["updated_by"] = self.context["request"].user
+        return super().update(instance, validated_data)
+
+
+class VitalSerializer(AuthoredModelSerializer):
     patient = serializers.IntegerField(source="visit.patient_id", read_only=True)
 
     class Meta:
@@ -19,11 +39,21 @@ class VitalSerializer(serializers.ModelSerializer):
             "collected_at",
             "created_at",
             "updated_at",
+            "created_by",
+            "updated_by",
         ]
-        read_only_fields = ["id", "visit", "patient", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "visit",
+            "patient",
+            "created_at",
+            "updated_at",
+            "created_by",
+            "updated_by",
+        ]
 
 
-class VisitSerializer(serializers.ModelSerializer):
+class VisitSerializer(AuthoredModelSerializer):
     vitals = VitalSerializer(many=True, read_only=True)
 
     class Meta:
@@ -38,11 +68,20 @@ class VisitSerializer(serializers.ModelSerializer):
             "vitals",
             "created_at",
             "updated_at",
+            "created_by",
+            "updated_by",
         ]
-        read_only_fields = ["id", "patient", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "patient",
+            "created_at",
+            "updated_at",
+            "created_by",
+            "updated_by",
+        ]
 
 
-class MedicationSerializer(serializers.ModelSerializer):
+class MedicationSerializer(AuthoredModelSerializer):
     class Meta:
         model = Medication
         fields = [
@@ -53,11 +92,20 @@ class MedicationSerializer(serializers.ModelSerializer):
             "frequency",
             "created_at",
             "updated_at",
+            "created_by",
+            "updated_by",
         ]
-        read_only_fields = ["id", "patient", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "patient",
+            "created_at",
+            "updated_at",
+            "created_by",
+            "updated_by",
+        ]
 
 
-class AllergySerializer(serializers.ModelSerializer):
+class AllergySerializer(AuthoredModelSerializer):
     class Meta:
         model = Allergy
         fields = [
@@ -67,12 +115,27 @@ class AllergySerializer(serializers.ModelSerializer):
             "reaction",
             "created_at",
             "updated_at",
+            "created_by",
+            "updated_by",
         ]
-        read_only_fields = ["id", "patient", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "patient",
+            "created_at",
+            "updated_at",
+            "created_by",
+            "updated_by",
+        ]
 
 
 class PatientSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
+        request = self.context.get("request")
+        if request and user_is_nurse(request.user) and attrs:
+            raise serializers.ValidationError(
+                "Nurses cannot modify patient demographic fields."
+            )
+
         if self.instance is not None:
             return attrs
 
@@ -103,6 +166,15 @@ class PatientDetailSerializer(serializers.ModelSerializer):
     allergies = AllergySerializer(many=True, read_only=True)
     visits = VisitSerializer(many=True, read_only=True)
     latest_vitals = serializers.SerializerMethodField()
+
+    def validate(self, attrs):
+        request = self.context.get("request")
+        if request and user_is_nurse(request.user) and attrs:
+            raise serializers.ValidationError(
+                "Nurses cannot modify patient demographic fields."
+            )
+
+        return attrs
 
     def get_latest_vitals(self, patient):
         latest = (

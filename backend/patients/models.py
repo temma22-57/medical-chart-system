@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
@@ -17,7 +18,27 @@ class Patient(models.Model):
         return f"{self.first_name} {self.last_name}"
 
 
-class Visit(models.Model):
+class AuthoredModel(models.Model):
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="%(app_label)s_%(class)s_created_records",
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="%(app_label)s_%(class)s_updated_records",
+    )
+
+    class Meta:
+        abstract = True
+
+
+class Visit(AuthoredModel):
     patient = models.ForeignKey(Patient, related_name="visits", on_delete=models.CASCADE)
     visit_date = models.DateField()
     primary_care_physician = models.CharField(max_length=150)
@@ -34,7 +55,7 @@ class Visit(models.Model):
         return f"{self.patient} visit on {self.visit_date}"
 
 
-class Vital(models.Model):
+class Vital(AuthoredModel):
     visit = models.ForeignKey(Visit, related_name="vitals", on_delete=models.CASCADE)
     height = models.DecimalField(max_digits=5, decimal_places=2)
     weight = models.DecimalField(max_digits=6, decimal_places=2)
@@ -52,7 +73,7 @@ class Vital(models.Model):
         return f"Vitals for {self.visit}"
 
 
-class Medication(models.Model):
+class Medication(AuthoredModel):
     patient = models.ForeignKey(Patient, related_name="medications", on_delete=models.CASCADE)
     name = models.CharField(max_length=150)
     dosage = models.CharField(max_length=100)
@@ -68,7 +89,7 @@ class Medication(models.Model):
         return f"{self.name} for {self.patient}"
 
 
-class Allergy(models.Model):
+class Allergy(AuthoredModel):
     patient = models.ForeignKey(Patient, related_name="allergies", on_delete=models.CASCADE)
     substance = models.CharField(max_length=150)
     reaction = models.CharField(max_length=255, blank=True)
