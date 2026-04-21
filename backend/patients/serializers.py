@@ -107,6 +107,7 @@ class MedicationSerializer(serializers.ModelSerializer):
             "name",
             "dosage",
             "frequency",
+            "duration",
             "created_at",
             "updated_at",
         ]

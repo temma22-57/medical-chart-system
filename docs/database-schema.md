@@ -197,6 +197,7 @@ Fields:
 | `name` | `CharField(max_length=150)` | Required |
 | `dosage` | `CharField(max_length=100)` | Required |
 | `frequency` | `CharField(max_length=100)` | Required |
+| `duration` | `CharField(max_length=100, blank=True)` | Optional |
 | `created_at` | `DateTimeField(auto_now_add=True)` | Created timestamp |
 | `updated_at` | `DateTimeField(auto_now=True)` | Updated timestamp |
 

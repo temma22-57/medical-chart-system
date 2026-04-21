@@ -31,6 +31,7 @@ const fieldLabels: Record<RecordType, Record<string, string>> = {
     name: "Name",
     dosage: "Dosage",
     frequency: "Frequency",
+    duration: "Duration",
   },
   diagnoses: {
     name: "Name",
@@ -57,6 +58,7 @@ const initialValues: Record<RecordType, FormValues> = {
     name: "",
     dosage: "",
     frequency: "",
+    duration: "",
   },
   diagnoses: {
     name: "",
@@ -105,6 +107,7 @@ function valuesFromRecord(recordType: RecordType, record: Visit | Medication | D
       name: medication.name,
       dosage: medication.dosage,
       frequency: medication.frequency,
+      duration: medication.duration || "",
     };
   }
 
@@ -224,6 +227,7 @@ export default function PatientRelatedRecordFormPage({
           name: values.name,
           dosage: values.dosage,
           frequency: values.frequency,
+          duration: values.duration,
         };
         if (mode === "add") {
           await createMedication(patientId, payload);
@@ -274,6 +278,7 @@ export default function PatientRelatedRecordFormPage({
   const optionalFields = [
     "staff_assigned",
     "reaction",
+    "duration",
     "diagnosis_code",
     "provider_name",
     "resolution_date",

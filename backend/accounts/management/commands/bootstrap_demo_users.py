@@ -150,11 +150,13 @@ class Command(BaseCommand):
                     "name": "Lisinopril",
                     "dosage": "10 mg",
                     "frequency": "Daily",
+                    "duration": "Ongoing",
                 },
                 {
                     "name": "Ibuprofen",
                     "dosage": "200 mg",
                     "frequency": "As needed",
+                    "duration": "Short term",
                 },
             ],
             diagnoses=[
@@ -212,6 +214,7 @@ class Command(BaseCommand):
                     "name": "Albuterol inhaler",
                     "dosage": "90 mcg",
                     "frequency": "As needed",
+                    "duration": "Ongoing",
                 }
             ],
             diagnoses=[
@@ -281,6 +284,7 @@ class Command(BaseCommand):
                 defaults={
                     "dosage": medication_data["dosage"],
                     "frequency": medication_data["frequency"],
+                    "duration": medication_data.get("duration", ""),
                 },
             )
 

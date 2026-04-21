@@ -195,6 +195,7 @@ function MedicationsCard({
                 <TableCell>Name</TableCell>
                 <TableCell>Dosage</TableCell>
                 <TableCell>Frequency</TableCell>
+                <TableCell>Duration</TableCell>
                 <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -204,6 +205,7 @@ function MedicationsCard({
                   <TableCell>{medication.name}</TableCell>
                   <TableCell>{medication.dosage}</TableCell>
                   <TableCell>{medication.frequency}</TableCell>
+                  <TableCell>{displayValue(medication.duration)}</TableCell>
                   <TableCell>
                     <Button
                       component={RouterLink}

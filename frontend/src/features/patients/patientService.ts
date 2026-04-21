@@ -56,6 +56,7 @@ export interface Medication {
   name: string;
   dosage: string;
   frequency: string;
+  duration?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -106,6 +107,7 @@ export interface MedicationPayload {
   name: string;
   dosage: string;
   frequency: string;
+  duration?: string;
 }
 
 export interface DiagnosisPayload {

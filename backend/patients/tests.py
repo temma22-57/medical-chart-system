@@ -47,6 +47,7 @@ class PatientRelationshipTests(APITestCase):
             name="Metformin",
             dosage="500 mg",
             frequency="Twice daily",
+            duration="90 days",
         )
         Diagnosis.objects.create(
             patient=patient,
@@ -238,6 +239,7 @@ class PatientApiTests(APITestCase):
             name="Lisinopril",
             dosage="10 mg",
             frequency="Daily",
+            duration="Ongoing",
         )
         diagnosis = Diagnosis.objects.create(
             patient=patient,
@@ -351,6 +353,7 @@ class PatientApiTests(APITestCase):
             name="Lisinopril",
             dosage="10 mg",
             frequency="Daily",
+            duration="Ongoing",
         )
         Diagnosis.objects.create(
             patient=patient,
@@ -387,6 +390,7 @@ class PatientApiTests(APITestCase):
         self.assertEqual(response.data["first_name"], "Jordan")
         self.assertIn("primary_language", response.data)
         self.assertEqual(response.data["medications"][0]["name"], "Lisinopril")
+        self.assertEqual(response.data["medications"][0]["duration"], "Ongoing")
         self.assertEqual(response.data["diagnoses"][0]["name"], "Hypertension")
         self.assertEqual(response.data["diagnoses"][0]["diagnosis_code"], "I10")
         self.assertEqual(response.data["allergies"][0]["substance"], "Latex")
@@ -498,6 +502,34 @@ class PatientApiTests(APITestCase):
         nurse_note.refresh_from_db()
         self.assertEqual(own_note.content, "Updated doctor note.")
         self.assertEqual(nurse_note.content, "Original nurse note.")
+
+    def test_create_and_update_medication_with_duration(self):
+        self.client.force_authenticate(user=self.doctor)
+        patient = Patient.objects.create(first_name="Casey", last_name="Rivera")
+        payload = {
+            "name": "Amoxicillin",
+            "dosage": "500 mg",
+            "frequency": "Twice daily",
+            "duration": "10 days",
+        }
+
+        create_response = self.client.post(
+            reverse("patient-medications", kwargs={"patient_id": patient.id}),
+            payload,
+            format="json",
+        )
+        medication_id = create_response.data["id"]
+        update_response = self.client.patch(
+            reverse("medication-detail", kwargs={"pk": medication_id}),
+            {"duration": "14 days"},
+            format="json",
+        )
+
+        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(create_response.data["duration"], "10 days")
+        self.assertEqual(update_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(update_response.data["duration"], "14 days")
+        self.assertEqual(patient.medications.get().duration, "14 days")
 
     def test_nurse_cannot_update_visit(self):
         self.client.force_authenticate(user=self.nurse)
