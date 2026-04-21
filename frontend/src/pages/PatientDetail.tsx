@@ -328,9 +328,9 @@ export default function PatientDetail() {
       </Paper>
 
       <Stack spacing={2}>
-        <VisitsCard patientId={patient.id} visits={patient.visits} />
         <MedicationsCard patientId={patient.id} medications={patient.medications} />
         <AllergiesCard patientId={patient.id} allergies={patient.allergies} />
+        <VisitsCard patientId={patient.id} visits={patient.visits} />
       </Stack>
     </Stack>
   );
