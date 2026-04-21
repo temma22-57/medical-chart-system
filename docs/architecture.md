@@ -73,8 +73,8 @@ The React frontend owns:
 - Login page.
 - Authenticated layout with navigation and patient search.
 - Patient list and patient create page.
-- Patient detail dashboard with demographics, latest vitals, visits, medications, diagnoses, and allergies.
-- Add/edit flows for visits, medications, diagnoses, allergies, and adding vitals to visits.
+- Patient detail dashboard with demographics, latest vitals, visits, authored visit notes, medications, diagnoses, and allergies.
+- Add/edit flows for visits, visit notes, medications, diagnoses, allergies, and adding vitals to visits.
 - API calls through an axios service layer.
 
 Important frontend files:
@@ -104,6 +104,7 @@ Current routes:
 /patients/:id
 /patients/:id/visits/new
 /patients/:id/visits/:recordId/edit
+/patients/:id/visits/:recordId/notes
 /patients/:id/visits/:recordId/vitals/new
 /patients/:id/medications/new
 /patients/:id/medications/:recordId/edit
@@ -138,7 +139,7 @@ PatientDetail page
   -> PatientDetailView
   -> PatientDetailSerializer
   -> PostgreSQL Patient + related records
-  -> JSON response with medications, diagnoses, allergies, visits, latest_vitals
+  -> JSON response with medications, diagnoses, allergies, visits, visit notes, latest_vitals
 ```
 
 ## Database Role
@@ -217,6 +218,7 @@ Current demo roles:
   - Can view, add, and change patient-domain records.
 - `Nurse`
   - Can view patient-domain records.
+  - Can add and change only their own visit notes.
   - Cannot add or change restricted patient-domain records.
 
 The frontend routes Admin users to `/admin/users` and hides patient navigation/search for that role. The backend also enforces the separation: Admin-only user-management endpoints require the `Admin` group, and patient-domain permissions explicitly reject Admin users.
@@ -250,4 +252,5 @@ npm run lint
 - MFA is represented only by `mfa_required: false` in login responses.
 - Audit logging is not implemented yet.
 - Visit staff attribution is stored as text, not linked to user accounts.
+- Visit notes are linked to user accounts, with one note per user per visit.
 - CORS is open in development settings.

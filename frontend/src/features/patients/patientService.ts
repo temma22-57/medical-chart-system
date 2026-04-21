@@ -18,8 +18,20 @@ export interface Visit {
   visit_date: string;
   primary_care_physician: string;
   staff_assigned?: string;
-  notes: string;
+  notes: VisitNote[];
   vitals: Vital[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface VisitNote {
+  id: number;
+  visit: number;
+  author: number;
+  author_username: string;
+  author_display_name: string;
+  content: string;
+  can_edit: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -84,7 +96,10 @@ export interface VisitPayload {
   visit_date: string;
   primary_care_physician: string;
   staff_assigned?: string;
-  notes: string;
+}
+
+export interface VisitNotePayload {
+  content: string;
 }
 
 export interface MedicationPayload {
@@ -151,6 +166,22 @@ export const updateVisit = async (
   visit: Partial<VisitPayload>,
 ): Promise<Visit> => {
   const res = await api.patch(`/visits/${visitId}/`, visit);
+  return res.data;
+};
+
+export const createVisitNote = async (
+  visitId: number,
+  note: VisitNotePayload,
+): Promise<VisitNote> => {
+  const res = await api.post(`/visits/${visitId}/notes/`, note);
+  return res.data;
+};
+
+export const updateVisitNote = async (
+  noteId: number,
+  note: Partial<VisitNotePayload>,
+): Promise<VisitNote> => {
+  const res = await api.patch(`/visit-notes/${noteId}/`, note);
   return res.data;
 };
 

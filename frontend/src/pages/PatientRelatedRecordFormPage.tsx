@@ -26,7 +26,6 @@ const fieldLabels: Record<RecordType, Record<string, string>> = {
     visit_date: "Visit date",
     primary_care_physician: "Primary care physician",
     staff_assigned: "Staff assigned",
-    notes: "Notes",
   },
   medications: {
     name: "Name",
@@ -53,7 +52,6 @@ const initialValues: Record<RecordType, FormValues> = {
     visit_date: "",
     primary_care_physician: "",
     staff_assigned: "",
-    notes: "",
   },
   medications: {
     name: "",
@@ -98,7 +96,6 @@ function valuesFromRecord(recordType: RecordType, record: Visit | Medication | D
       visit_date: visit.visit_date,
       primary_care_physician: visit.primary_care_physician,
       staff_assigned: visit.staff_assigned || "",
-      notes: visit.notes,
     };
   }
 
@@ -216,7 +213,6 @@ export default function PatientRelatedRecordFormPage({
           visit_date: values.visit_date,
           primary_care_physician: values.primary_care_physician,
           staff_assigned: values.staff_assigned,
-          notes: values.notes,
         };
         if (mode === "add") {
           await createVisit(patientId, payload);
@@ -311,7 +307,7 @@ export default function PatientRelatedRecordFormPage({
                   onChange={(event) =>
                     setValues({ ...values, [field]: event.target.value })
                   }
-                  required
+                  required={!optionalFields.includes(field)}
                   style={{ display: "block", width: "100%" }}
                 />
               ) : field === "status" ? (

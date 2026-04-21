@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
@@ -22,7 +23,6 @@ class Visit(models.Model):
     visit_date = models.DateField()
     primary_care_physician = models.CharField(max_length=150)
     staff_assigned = models.CharField(max_length=150, blank=True)
-    notes = models.TextField()
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -32,6 +32,31 @@ class Visit(models.Model):
 
     def __str__(self):
         return f"{self.patient} visit on {self.visit_date}"
+
+
+class VisitNote(models.Model):
+    visit = models.ForeignKey(Visit, related_name="note_entries", on_delete=models.CASCADE)
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name="visit_notes",
+        on_delete=models.CASCADE,
+    )
+    content = models.TextField()
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["visit", "author"],
+                name="unique_visit_note_per_author",
+            )
+        ]
+
+    def __str__(self):
+        return f"Note by {self.author} for {self.visit}"
 
 
 class Vital(models.Model):

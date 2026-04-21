@@ -21,6 +21,8 @@ from patients.views import (
     DiagnosisDetailView,
     MedicationDetailView,
     VisitDetailView,
+    VisitNoteDetailView,
+    VisitNoteListCreateView,
     VisitVitalListCreateView,
     VitalDetailView,
 )
@@ -30,6 +32,8 @@ urlpatterns = [
     path("api/auth/", include("accounts.urls")),
     path("api/patients/", include("patients.urls")),
     path("api/visits/<int:pk>/", VisitDetailView.as_view(), name="visit-detail"),
+    path("api/visits/<int:visit_id>/notes/", VisitNoteListCreateView.as_view(), name="visit-notes"),
+    path("api/visit-notes/<int:pk>/", VisitNoteDetailView.as_view(), name="visit-note-detail"),
     path("api/visits/<int:visit_id>/vitals/", VisitVitalListCreateView.as_view(), name="visit-vitals"),
     path("api/medications/<int:pk>/", MedicationDetailView.as_view(), name="medication-detail"),
     path("api/diagnoses/<int:pk>/", DiagnosisDetailView.as_view(), name="diagnosis-detail"),

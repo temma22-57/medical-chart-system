@@ -4,7 +4,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from .models import Allergy, Diagnosis, Medication, Patient, Visit, Vital
+from .models import Allergy, Diagnosis, Medication, Patient, Visit, VisitNote, Vital
 from .serializers import PatientDetailSerializer, PatientSerializer, VisitSerializer
 
 
@@ -64,7 +64,6 @@ class PatientRelationshipTests(APITestCase):
             visit_date="2026-04-12",
             primary_care_physician="Dr. Patel",
             staff_assigned="Nurse Lee",
-            notes="Routine follow-up.",
         )
 
         self.assertEqual(patient.medications.count(), 1)
@@ -78,7 +77,6 @@ class PatientRelationshipTests(APITestCase):
             patient=patient,
             visit_date="2026-04-12",
             primary_care_physician="Dr. Patel",
-            notes="Routine follow-up.",
         )
         Vital.objects.create(
             visit=visit,
@@ -136,7 +134,6 @@ class PatientSerializerTests(APITestCase):
             patient=patient,
             visit_date="2026-04-13",
             primary_care_physician="Dr. Smith",
-            notes="Annual visit.",
         )
         Vital.objects.create(
             visit=visit,
@@ -158,7 +155,6 @@ class PatientSerializerTests(APITestCase):
             patient=patient,
             visit_date="2026-04-13",
             primary_care_physician="Dr. Smith",
-            notes="Annual visit.",
         )
         Vital.objects.create(
             visit=visit,
@@ -186,6 +182,9 @@ class PatientApiTests(APITestCase):
                 "view_visit",
                 "add_visit",
                 "change_visit",
+                "view_visitnote",
+                "add_visitnote",
+                "change_visitnote",
                 "view_medication",
                 "add_medication",
                 "change_medication",
@@ -205,6 +204,9 @@ class PatientApiTests(APITestCase):
             [
                 "view_patient",
                 "view_visit",
+                "view_visitnote",
+                "add_visitnote",
+                "change_visitnote",
                 "view_medication",
                 "view_diagnosis",
                 "view_allergy",
@@ -225,7 +227,11 @@ class PatientApiTests(APITestCase):
             patient=patient,
             visit_date="2026-04-13",
             primary_care_physician="Dr. Smith",
-            notes="Admin should not see this.",
+        )
+        note = VisitNote.objects.create(
+            visit=visit,
+            author=self.doctor,
+            content="Admin should not see this.",
         )
         medication = Medication.objects.create(
             patient=patient,
@@ -254,6 +260,8 @@ class PatientApiTests(APITestCase):
             reverse("patient-detail", kwargs={"pk": patient.id}),
             reverse("patient-visits", kwargs={"patient_id": patient.id}),
             reverse("visit-detail", kwargs={"pk": visit.id}),
+            reverse("visit-notes", kwargs={"visit_id": visit.id}),
+            reverse("visit-note-detail", kwargs={"pk": note.id}),
             reverse("patient-medications", kwargs={"patient_id": patient.id}),
             reverse("medication-detail", kwargs={"pk": medication.id}),
             reverse("patient-diagnoses", kwargs={"patient_id": patient.id}),
@@ -357,7 +365,11 @@ class PatientApiTests(APITestCase):
             visit_date="2026-04-10",
             primary_care_physician="Dr. Nguyen",
             staff_assigned="MA Carter",
-            notes="Blood pressure check.",
+        )
+        VisitNote.objects.create(
+            visit=visit,
+            author=self.doctor,
+            content="Blood pressure check.",
         )
         Vital.objects.create(
             visit=visit,
@@ -379,6 +391,7 @@ class PatientApiTests(APITestCase):
         self.assertEqual(response.data["diagnoses"][0]["diagnosis_code"], "I10")
         self.assertEqual(response.data["allergies"][0]["substance"], "Latex")
         self.assertEqual(response.data["visits"][0]["primary_care_physician"], "Dr. Nguyen")
+        self.assertEqual(response.data["visits"][0]["notes"][0]["content"], "Blood pressure check.")
         self.assertEqual(response.data["visits"][0]["vitals"][0]["blood_pressure"], "118/76")
         self.assertEqual(response.data["latest_vitals"]["heart_rate"], 68)
 
@@ -389,7 +402,6 @@ class PatientApiTests(APITestCase):
             "visit_date": "2026-04-13",
             "primary_care_physician": "Dr. Smith",
             "staff_assigned": "Nurse Gomez",
-            "notes": "Medication review.",
         }
 
         response = self.client.post(
@@ -400,7 +412,7 @@ class PatientApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(patient.visits.count(), 1)
-        self.assertEqual(response.data["notes"], "Medication review.")
+        self.assertEqual(response.data["notes"], [])
 
     def test_doctor_can_update_visit(self):
         self.client.force_authenticate(user=self.doctor)
@@ -409,18 +421,83 @@ class PatientApiTests(APITestCase):
             patient=patient,
             visit_date="2026-04-13",
             primary_care_physician="Dr. Smith",
-            notes="Medication review.",
         )
 
         response = self.client.patch(
             reverse("visit-detail", kwargs={"pk": visit.id}),
-            {"notes": "Updated visit notes."},
+            {"staff_assigned": "Nurse Gomez"},
             format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         visit.refresh_from_db()
-        self.assertEqual(visit.notes, "Updated visit notes.")
+        self.assertEqual(visit.staff_assigned, "Nurse Gomez")
+
+    def test_create_and_list_visit_notes_for_visit(self):
+        self.client.force_authenticate(user=self.doctor)
+        patient = Patient.objects.create(first_name="Casey", last_name="Rivera")
+        visit = Visit.objects.create(
+            patient=patient,
+            visit_date="2026-04-13",
+            primary_care_physician="Dr. Smith",
+        )
+        VisitNote.objects.create(
+            visit=visit,
+            author=self.nurse,
+            content="Nurse note remains visible.",
+        )
+
+        create_response = self.client.post(
+            reverse("visit-notes", kwargs={"visit_id": visit.id}),
+            {"content": "Doctor note for this visit."},
+            format="json",
+        )
+        list_response = self.client.get(reverse("visit-notes", kwargs={"visit_id": visit.id}))
+
+        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(visit.note_entries.count(), 2)
+        self.assertEqual(list_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(list_response.data[0]["content"], "Nurse note remains visible.")
+        self.assertEqual(list_response.data[1]["content"], "Doctor note for this visit.")
+        self.assertTrue(list_response.data[1]["can_edit"])
+        self.assertFalse(list_response.data[0]["can_edit"])
+
+    def test_user_can_update_only_own_visit_note(self):
+        self.client.force_authenticate(user=self.doctor)
+        patient = Patient.objects.create(first_name="Casey", last_name="Rivera")
+        visit = Visit.objects.create(
+            patient=patient,
+            visit_date="2026-04-13",
+            primary_care_physician="Dr. Smith",
+        )
+        own_note = VisitNote.objects.create(
+            visit=visit,
+            author=self.doctor,
+            content="Original doctor note.",
+        )
+        nurse_note = VisitNote.objects.create(
+            visit=visit,
+            author=self.nurse,
+            content="Original nurse note.",
+        )
+
+        own_response = self.client.patch(
+            reverse("visit-note-detail", kwargs={"pk": own_note.id}),
+            {"content": "Updated doctor note."},
+            format="json",
+        )
+        other_response = self.client.patch(
+            reverse("visit-note-detail", kwargs={"pk": nurse_note.id}),
+            {"content": "Doctor edit attempt."},
+            format="json",
+        )
+
+        self.assertEqual(own_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(other_response.status_code, status.HTTP_403_FORBIDDEN)
+        own_note.refresh_from_db()
+        nurse_note.refresh_from_db()
+        self.assertEqual(own_note.content, "Updated doctor note.")
+        self.assertEqual(nurse_note.content, "Original nurse note.")
 
     def test_nurse_cannot_update_visit(self):
         self.client.force_authenticate(user=self.nurse)
@@ -429,18 +506,18 @@ class PatientApiTests(APITestCase):
             patient=patient,
             visit_date="2026-04-13",
             primary_care_physician="Dr. Smith",
-            notes="Medication review.",
+            staff_assigned="Original staff",
         )
 
         response = self.client.patch(
             reverse("visit-detail", kwargs={"pk": visit.id}),
-            {"notes": "Nurse edit attempt."},
+            {"staff_assigned": "Nurse edit attempt."},
             format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         visit.refresh_from_db()
-        self.assertEqual(visit.notes, "Medication review.")
+        self.assertEqual(visit.staff_assigned, "Original staff")
 
     def test_create_and_list_diagnoses_current_first(self):
         self.client.force_authenticate(user=self.doctor)
@@ -503,7 +580,6 @@ class PatientApiTests(APITestCase):
             patient=patient,
             visit_date="2026-04-13",
             primary_care_physician="Dr. Smith",
-            notes="Medication review.",
         )
         payload = {
             "height": "67.50",
@@ -531,13 +607,11 @@ class PatientApiTests(APITestCase):
             patient=patient,
             visit_date="2026-04-12",
             primary_care_physician="Dr. Smith",
-            notes="Older visit.",
         )
         newer_visit = Visit.objects.create(
             patient=patient,
             visit_date="2026-04-13",
             primary_care_physician="Dr. Smith",
-            notes="Newer visit.",
         )
         Vital.objects.create(
             visit=newer_visit,
@@ -582,7 +656,6 @@ class PatientApiTests(APITestCase):
             "visit_date": "2026-04-13",
             "primary_care_physician": "Dr. Smith",
             "staff_assigned": "Nurse Gomez",
-            "notes": "Restricted write attempt.",
         }
 
         response = self.client.post(

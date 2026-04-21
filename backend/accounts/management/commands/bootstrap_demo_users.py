@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
 from django.core.management.base import BaseCommand
 
-from patients.models import Allergy, Diagnosis, Medication, Patient, Visit, Vital
+from patients.models import Allergy, Diagnosis, Medication, Patient, Visit, VisitNote, Vital
 
 
 class Command(BaseCommand):
@@ -19,6 +19,9 @@ class Command(BaseCommand):
                 "view_visit",
                 "add_visit",
                 "change_visit",
+                "view_visitnote",
+                "add_visitnote",
+                "change_visitnote",
                 "view_medication",
                 "add_medication",
                 "change_medication",
@@ -38,6 +41,9 @@ class Command(BaseCommand):
             [
                 "view_patient",
                 "view_visit",
+                "view_visitnote",
+                "add_visitnote",
+                "change_visitnote",
                 "view_medication",
                 "view_diagnosis",
                 "view_allergy",
@@ -46,9 +52,9 @@ class Command(BaseCommand):
         )
 
         self.create_user("admin", "adminpass", admin_group)
-        self.create_user("doctor", "doctorpass", doctor_group)
-        self.create_user("nurse", "nursepass", nurse_group)
-        self.create_demo_medical_records()
+        doctor = self.create_user("doctor", "doctorpass", doctor_group)
+        nurse = self.create_user("nurse", "nursepass", nurse_group)
+        self.create_demo_medical_records(doctor, nurse)
 
         self.stdout.write(
             self.style.SUCCESS("Created demo users and demo patient medical records.")
@@ -71,7 +77,7 @@ class Command(BaseCommand):
         user.groups.set([group])
         return user
 
-    def create_demo_medical_records(self):
+    def create_demo_medical_records(self, doctor, nurse):
         jordan, _ = Patient.objects.update_or_create(
             first_name="Jordan",
             last_name="Kim",
@@ -100,7 +106,16 @@ class Command(BaseCommand):
                     "visit_date": "2026-04-10",
                     "primary_care_physician": "Dr. Morgan Patel",
                     "staff_assigned": "Nurse Lee",
-                    "notes": "Blood pressure check and medication review.",
+                    "notes": [
+                        {
+                            "author": doctor,
+                            "content": "Blood pressure check and medication review.",
+                        },
+                        {
+                            "author": nurse,
+                            "content": "Reviewed home blood pressure log with patient.",
+                        },
+                    ],
                     "vitals": {
                         "height": "70.00",
                         "weight": "181.50",
@@ -114,7 +129,12 @@ class Command(BaseCommand):
                     "visit_date": "2026-03-15",
                     "primary_care_physician": "Dr. Morgan Patel",
                     "staff_assigned": "Nurse Lee",
-                    "notes": "Initial intake visit for recurring headaches.",
+                    "notes": [
+                        {
+                            "author": doctor,
+                            "content": "Initial intake visit for recurring headaches.",
+                        }
+                    ],
                     "vitals": {
                         "height": "70.00",
                         "weight": "183.00",
@@ -171,7 +191,12 @@ class Command(BaseCommand):
                     "visit_date": "2026-04-12",
                     "primary_care_physician": "Dr. Elena Smith",
                     "staff_assigned": "Nurse Gomez",
-                    "notes": "Asthma follow-up. Symptoms controlled with current inhaler.",
+                    "notes": [
+                        {
+                            "author": doctor,
+                            "content": "Asthma follow-up. Symptoms controlled with current inhaler.",
+                        }
+                    ],
                     "vitals": {
                         "height": "66.50",
                         "weight": "142.25",
@@ -222,15 +247,21 @@ class Command(BaseCommand):
     def create_related_records(self, patient, visits, medications, diagnoses, allergies):
         for visit_data in visits:
             vitals_data = visit_data.pop("vitals")
+            notes_data = visit_data.pop("notes")
             visit, _ = Visit.objects.update_or_create(
                 patient=patient,
                 visit_date=visit_data["visit_date"],
                 primary_care_physician=visit_data["primary_care_physician"],
                 defaults={
                     "staff_assigned": visit_data["staff_assigned"],
-                    "notes": visit_data["notes"],
                 },
             )
+            for note_data in notes_data:
+                VisitNote.objects.update_or_create(
+                    visit=visit,
+                    author=note_data["author"],
+                    defaults={"content": note_data["content"]},
+                )
             Vital.objects.update_or_create(
                 visit=visit,
                 collected_at=vitals_data["collected_at"],

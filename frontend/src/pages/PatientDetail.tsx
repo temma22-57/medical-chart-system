@@ -58,8 +58,25 @@ const notesClampSx = {
   WebkitLineClamp: 3,
 };
 
+const visitNotesBoxSx = {
+  maxHeight: 120,
+  maxWidth: 420,
+  overflowY: "auto",
+  pr: 1,
+  whiteSpace: "pre-wrap",
+  wordBreak: "break-word",
+};
+
 function displayValue(value: string | number | undefined | null) {
   return value === undefined || value === null || value === "" ? "Not recorded" : value;
+}
+
+function formatTimestamp(value?: string) {
+  if (!value) {
+    return "";
+  }
+
+  return new Date(value).toLocaleString();
 }
 
 function SectionTitle({
@@ -110,16 +127,41 @@ function VisitsCard({ patientId, visits }: { patientId: number; visits: Visit[] 
                   <TableCell>{visit.primary_care_physician}</TableCell>
                   <TableCell>{displayValue(visit.staff_assigned)}</TableCell>
                   <TableCell>
-                    <Box sx={notesClampSx}>{visit.notes}</Box>
+                    {visit.notes.length === 0 ? (
+                      <Typography sx={{ color: "#c4ccbe" }}>No notes recorded.</Typography>
+                    ) : (
+                      <Box sx={visitNotesBoxSx}>
+                        <Stack spacing={1}>
+                          {visit.notes.map((note) => (
+                            <Box key={note.id}>
+                              <Typography variant="caption" sx={{ color: "#c4ccbe" }}>
+                                {note.author_display_name}
+                                {note.updated_at ? ` - ${formatTimestamp(note.updated_at)}` : ""}
+                              </Typography>
+                              <Typography>{note.content}</Typography>
+                            </Box>
+                          ))}
+                        </Stack>
+                      </Box>
+                    )}
                   </TableCell>
                   <TableCell>
-                    <Button
-                      component={RouterLink}
-                      to={`/patients/${patientId}/visits/${visit.id}/edit`}
-                      size="small"
-                    >
-                      Edit
-                    </Button>
+                    <Stack spacing={0.5}>
+                      <Button
+                        component={RouterLink}
+                        to={`/patients/${patientId}/visits/${visit.id}/notes`}
+                        size="small"
+                      >
+                        Notes
+                      </Button>
+                      <Button
+                        component={RouterLink}
+                        to={`/patients/${patientId}/visits/${visit.id}/edit`}
+                        size="small"
+                      >
+                        Edit
+                      </Button>
+                    </Stack>
                   </TableCell>
                 </TableRow>
               ))}
