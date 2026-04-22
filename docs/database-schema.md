@@ -54,7 +54,7 @@ Important project usage:
 
 - `Admin` group has no patient-domain permissions and is used by custom API permissions for user-management endpoints.
 - `Doctor` group has view/add/change permissions for patients, visits, visit notes, medications, diagnoses, diagnosis notes, allergies, and vitals, plus delete permissions for visits, medications, diagnoses, and allergies subject to the creator-and-8-hour API rule.
-- `Nurse` group has view permissions for patients, visits, medications, diagnoses, allergies, and vitals plus view/add/change permissions for their own visit and diagnosis notes.
+- `Nurse` group has view permissions for patients, visits, medications, diagnoses, allergies, and vitals; add permission for visits; add/change permissions for vitals; plus view/add/change permissions for their own visit and diagnosis notes.
 - DRF token authentication stores API tokens in the `authtoken_token` table.
 
 ## AccountProfile

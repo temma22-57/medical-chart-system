@@ -26,7 +26,7 @@ import {
   getPatientCardOrderPreference,
   updatePatientCardOrderPreference,
 } from "../features/auth/authService";
-import type { PatientCardKey } from "../features/auth/authService";
+import type { CurrentUser, PatientCardKey } from "../features/auth/authService";
 import {
   deleteAllergy,
   deleteDiagnosis,
@@ -124,16 +124,20 @@ function formatTimestamp(value?: string) {
 
 function SectionTitle({
   addTo,
+  canAdd = true,
   title,
 }: {
   addTo: string;
+  canAdd?: boolean;
   title: string;
 }) {
   return (
     <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-      <Button component={RouterLink} to={addTo} size="small" variant="contained">
-        + Add
-      </Button>
+      {canAdd && (
+        <Button component={RouterLink} to={addTo} size="small" variant="contained">
+          + Add
+        </Button>
+      )}
       <Typography component="h4" variant="h6">
         {title}
       </Typography>
@@ -170,15 +174,17 @@ function DeleteAction({
 function VisitsCard({
   patientId,
   visits,
+  canAdd,
   onDelete,
 }: {
   patientId: number;
   visits: Visit[];
+  canAdd: boolean;
   onDelete: (visit: Visit) => void;
 }) {
   return (
     <Card variant="outlined" sx={chartCardSx}>
-      <CardHeader title={<SectionTitle addTo={`/patients/${patientId}/visits/new`} title="Visits" />} />
+      <CardHeader title={<SectionTitle addTo={`/patients/${patientId}/visits/new`} canAdd={canAdd} title="Visits" />} />
       <CardContent>
         {visits.length === 0 ? (
           <EmptyState>No visits recorded.</EmptyState>
@@ -246,18 +252,20 @@ function VisitsCard({
 function MedicationsCard({
   patientId,
   medications,
+  canAdd,
   onDelete,
   onStatusChange,
 }: {
   patientId: number;
   medications: Medication[];
+  canAdd: boolean;
   onDelete: (medication: Medication) => void;
   onStatusChange: (medication: Medication, isActive: boolean) => void;
 }) {
   return (
     <Card variant="outlined" sx={chartCardSx}>
       <CardHeader
-        title={<SectionTitle addTo={`/patients/${patientId}/medications/new`} title="Medications" />}
+        title={<SectionTitle addTo={`/patients/${patientId}/medications/new`} canAdd={canAdd} title="Medications" />}
       />
       <CardContent>
         {medications.length === 0 ? (
@@ -312,18 +320,20 @@ function MedicationsCard({
 function DiagnosesCard({
   patientId,
   diagnoses,
+  canAdd,
   onDelete,
   onStatusChange,
 }: {
   patientId: number;
   diagnoses: Diagnosis[];
+  canAdd: boolean;
   onDelete: (diagnosis: Diagnosis) => void;
   onStatusChange: (diagnosis: Diagnosis, status: string) => void;
 }) {
   return (
     <Card variant="outlined" sx={chartCardSx}>
       <CardHeader
-        title={<SectionTitle addTo={`/patients/${patientId}/diagnoses/new`} title="Diagnoses" />}
+        title={<SectionTitle addTo={`/patients/${patientId}/diagnoses/new`} canAdd={canAdd} title="Diagnoses" />}
       />
       <CardContent>
         {diagnoses.length === 0 ? (
@@ -409,16 +419,18 @@ function DiagnosesCard({
 function AllergiesCard({
   patientId,
   allergies,
+  canAdd,
   onDelete,
 }: {
   patientId: number;
   allergies: Allergy[];
+  canAdd: boolean;
   onDelete: (allergy: Allergy) => void;
 }) {
   return (
     <Card variant="outlined" sx={chartCardSx}>
       <CardHeader
-        title={<SectionTitle addTo={`/patients/${patientId}/allergies/new`} title="Allergies" />}
+        title={<SectionTitle addTo={`/patients/${patientId}/allergies/new`} canAdd={canAdd} title="Allergies" />}
       />
       <CardContent>
         {allergies.length === 0 ? (
@@ -453,7 +465,7 @@ function AllergiesCard({
   );
 }
 
-export default function PatientDetail() {
+export default function PatientDetail({ currentUser }: { currentUser?: CurrentUser }) {
   const { id } = useParams();
   const patientId = Number(id);
   const [patient, setPatient] = useState<PatientDetailType | null>(null);
@@ -524,6 +536,10 @@ export default function PatientDetail() {
   }
 
   const latestVitals = patient.latest_vitals;
+  const isNurse = currentUser?.roles.includes("Nurse") ?? false;
+  const isDoctor = currentUser?.roles.includes("Doctor") ?? !currentUser;
+  const canAddVisits = isDoctor || isNurse;
+  const canAddRestrictedPatientRecords = isDoctor;
 
   const moveDraftCard = (index: number, direction: -1 | 1) => {
     const nextIndex = index + direction;
@@ -651,6 +667,10 @@ export default function PatientDetail() {
   };
 
   const orderedCards = buildOrderedCards(cardOrder, patient, {
+    canAddAllergies: canAddRestrictedPatientRecords,
+    canAddDiagnoses: canAddRestrictedPatientRecords,
+    canAddMedications: canAddRestrictedPatientRecords,
+    canAddVisits,
     onAllergyDelete: handleAllergyDelete,
     onDiagnosisDelete: handleDiagnosisDelete,
     onDiagnosisStatusChange: handleDiagnosisStatusChange,
@@ -809,6 +829,10 @@ function isValidCardOrder(order: PatientCardKey[]): boolean {
 }
 
 type PatientCardActions = {
+  canAddAllergies: boolean;
+  canAddDiagnoses: boolean;
+  canAddMedications: boolean;
+  canAddVisits: boolean;
   onAllergyDelete: (allergy: Allergy) => void;
   onDiagnosisDelete: (diagnosis: Diagnosis) => void;
   onDiagnosisStatusChange: (diagnosis: Diagnosis, status: string) => void;
@@ -827,6 +851,7 @@ function buildOrderedCards(
       <MedicationsCard
         patientId={patient.id}
         medications={patient.medications}
+        canAdd={actions.canAddMedications}
         onDelete={actions.onMedicationDelete}
         onStatusChange={actions.onMedicationStatusChange}
       />
@@ -835,6 +860,7 @@ function buildOrderedCards(
       <DiagnosesCard
         patientId={patient.id}
         diagnoses={patient.diagnoses}
+        canAdd={actions.canAddDiagnoses}
         onDelete={actions.onDiagnosisDelete}
         onStatusChange={actions.onDiagnosisStatusChange}
       />
@@ -843,6 +869,7 @@ function buildOrderedCards(
       <AllergiesCard
         patientId={patient.id}
         allergies={patient.allergies}
+        canAdd={actions.canAddAllergies}
         onDelete={actions.onAllergyDelete}
       />
     ),
@@ -850,6 +877,7 @@ function buildOrderedCards(
       <VisitsCard
         patientId={patient.id}
         visits={patient.visits}
+        canAdd={actions.canAddVisits}
         onDelete={actions.onVisitDelete}
       />
     ),

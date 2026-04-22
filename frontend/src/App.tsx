@@ -116,7 +116,7 @@ function App() {
         />
         <Route
           path="/patients/:id"
-          element={isAdmin ? <Navigate to="/admin/users" replace /> : <PatientDetail />}
+          element={isAdmin ? <Navigate to="/admin/users" replace /> : <PatientDetail currentUser={currentUser!} />}
         />
         <Route
           path="/patients/:id/visits/new"
@@ -151,6 +151,8 @@ function App() {
           element={
             isAdmin ? (
               <Navigate to="/admin/users" replace />
+            ) : !currentUser?.roles.includes("Doctor") ? (
+              <PatientDetailRedirect />
             ) : (
               <PatientRelatedRecordFormPage recordType="medications" mode="add" />
             )
@@ -165,6 +167,8 @@ function App() {
           element={
             isAdmin ? (
               <Navigate to="/admin/users" replace />
+            ) : !currentUser?.roles.includes("Doctor") ? (
+              <PatientDetailRedirect />
             ) : (
               <PatientRelatedRecordFormPage recordType="diagnoses" mode="add" />
             )
@@ -189,6 +193,8 @@ function App() {
           element={
             isAdmin ? (
               <Navigate to="/admin/users" replace />
+            ) : !currentUser?.roles.includes("Doctor") ? (
+              <PatientDetailRedirect />
             ) : (
               <PatientRelatedRecordFormPage recordType="allergies" mode="add" />
             )

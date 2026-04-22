@@ -48,6 +48,7 @@ class Command(BaseCommand):
             [
                 "view_patient",
                 "view_visit",
+                "add_visit",
                 "view_visitnote",
                 "add_visitnote",
                 "change_visitnote",
@@ -58,6 +59,8 @@ class Command(BaseCommand):
                 "change_diagnosisnote",
                 "view_allergy",
                 "view_vital",
+                "add_vital",
+                "change_vital",
             ],
         )
 

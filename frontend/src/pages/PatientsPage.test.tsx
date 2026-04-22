@@ -57,7 +57,7 @@ describe("PatientsPage", () => {
     );
   });
 
-  it("renders the empty read-only nurse state", async () => {
+  it("renders the empty nurse state without patient creation", async () => {
     vi.mocked(getPatients).mockResolvedValue([]);
 
     render(
@@ -69,7 +69,7 @@ describe("PatientsPage", () => {
     await waitFor(() => {
       expect(screen.getByText(/no patients recorded yet/i)).toBeInTheDocument();
     });
-    expect(screen.getByText(/nurse access is read-only/i)).toBeInTheDocument();
+    expect(screen.getByText(/adding visits from a patient chart/i)).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /add patient/i })).not.toBeInTheDocument();
   });
 });

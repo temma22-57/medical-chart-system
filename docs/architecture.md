@@ -239,8 +239,10 @@ Current demo roles:
   - Can delete visits, medications, diagnoses, and allergies only when they created the record less than 8 hours ago.
 - `Nurse`
   - Can view patient-domain records.
+  - Can create visits from the patient chart.
+  - Can add and change visit vitals.
   - Can add and change only their own visit and diagnosis notes.
-  - Cannot add or change restricted patient-domain records.
+  - Cannot add medications, allergies, or diagnoses.
 
 The frontend routes Admin users to `/admin/users` and hides patient navigation/search for that role. The backend also enforces the separation: Admin-only user-management endpoints require the `Admin` group, and patient-domain permissions explicitly reject Admin users.
 

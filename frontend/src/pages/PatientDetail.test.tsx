@@ -186,6 +186,54 @@ describe("PatientDetail", () => {
     ).toBeTruthy();
   });
 
+  it("shows only the visit add action for nurses", async () => {
+    vi.mocked(getPatient).mockResolvedValue({
+      id: 7,
+      first_name: "Avery",
+      last_name: "Stone",
+      date_of_birth: "1990-04-12",
+      phone: "555-0100",
+      primary_language: "English",
+      medications: [],
+      diagnoses: [],
+      allergies: [],
+      visits: [],
+      latest_vitals: null,
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/patients/7"]}>
+        <Routes>
+          <Route
+            path="/patients/:id"
+            element={
+              <PatientDetail
+                currentUser={{
+                  id: 2,
+                  username: "nurse",
+                  first_name: "Nora",
+                  last_name: "Nurse",
+                  email: "",
+                  phone: "",
+                  roles: ["Nurse"],
+                }}
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: /avery stone/i })).toBeInTheDocument();
+    });
+
+    const addLinks = screen.getAllByRole("link", { name: /\+ add/i });
+
+    expect(addLinks).toHaveLength(1);
+    expect(addLinks[0]).toHaveAttribute("href", "/patients/7/visits/new");
+  });
+
   it("renders an error state when patient details cannot load", async () => {
     vi.mocked(getPatient).mockRejectedValue(new Error("request failed"));
 

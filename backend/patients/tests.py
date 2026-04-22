@@ -215,6 +215,7 @@ class PatientApiTests(APITestCase):
             [
                 "view_patient",
                 "view_visit",
+                "add_visit",
                 "view_visitnote",
                 "add_visitnote",
                 "change_visitnote",
@@ -225,6 +226,8 @@ class PatientApiTests(APITestCase):
                 "change_diagnosisnote",
                 "view_allergy",
                 "view_vital",
+                "add_vital",
+                "change_vital",
             ],
         )
         self.admin = create_user_with_group("admin", "Admin")
@@ -850,7 +853,7 @@ class PatientApiTests(APITestCase):
         self.assertEqual(response.data["id"], latest_same_visit.id)
         self.assertEqual(response.data["blood_pressure"], "116/74")
 
-    def test_nurse_cannot_create_visit_for_patient(self):
+    def test_nurse_can_create_visit_for_patient(self):
         self.client.force_authenticate(user=self.nurse)
         patient = Patient.objects.create(first_name="Riley", last_name="Brooks")
         payload = {
@@ -865,5 +868,75 @@ class PatientApiTests(APITestCase):
             format="json",
         )
 
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertEqual(patient.visits.count(), 0)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(patient.visits.count(), 1)
+        self.assertEqual(patient.visits.get().created_by, self.nurse)
+
+    def test_nurse_can_create_and_update_vitals_for_visit(self):
+        self.client.force_authenticate(user=self.nurse)
+        patient = Patient.objects.create(first_name="Riley", last_name="Brooks")
+        visit = Visit.objects.create(
+            patient=patient,
+            created_by=self.nurse,
+            visit_date="2026-04-13",
+            primary_care_physician="Dr. Smith",
+        )
+
+        create_response = self.client.post(
+            reverse("visit-vitals", kwargs={"visit_id": visit.id}),
+            {
+                "height": "67.50",
+                "weight": "145.25",
+                "blood_pressure": "122/78",
+                "heart_rate": 74,
+                "temperature": "98.70",
+            },
+            format="json",
+        )
+        vital_id = create_response.data["id"]
+        update_response = self.client.patch(
+            reverse("vital-detail", kwargs={"pk": vital_id}),
+            {"blood_pressure": "124/80"},
+            format="json",
+        )
+
+        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(update_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(visit.vitals.count(), 1)
+        self.assertEqual(visit.vitals.get().blood_pressure, "124/80")
+
+    def test_nurse_cannot_create_medication_allergy_or_diagnosis(self):
+        self.client.force_authenticate(user=self.nurse)
+        patient = Patient.objects.create(first_name="Riley", last_name="Brooks")
+
+        medication_response = self.client.post(
+            reverse("patient-medications", kwargs={"patient_id": patient.id}),
+            {
+                "name": "Lisinopril",
+                "dosage": "10 mg",
+                "frequency": "Daily",
+                "is_active": True,
+            },
+            format="json",
+        )
+        allergy_response = self.client.post(
+            reverse("patient-allergies", kwargs={"patient_id": patient.id}),
+            {"substance": "Penicillin", "reaction": "Rash"},
+            format="json",
+        )
+        diagnosis_response = self.client.post(
+            reverse("patient-diagnoses", kwargs={"patient_id": patient.id}),
+            {
+                "name": "Hypertension",
+                "status": Diagnosis.Status.CURRENT,
+                "date_diagnosed": "2026-04-13",
+            },
+            format="json",
+        )
+
+        self.assertEqual(medication_response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(allergy_response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(diagnosis_response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(patient.medications.count(), 0)
+        self.assertEqual(patient.allergies.count(), 0)
+        self.assertEqual(patient.diagnoses.count(), 0)

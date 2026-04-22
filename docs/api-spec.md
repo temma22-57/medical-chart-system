@@ -21,7 +21,7 @@ The project uses Django users, groups, and model permissions.
 - Unauthenticated users cannot access patient medical-record APIs.
 - `Admin` users can manage user accounts but cannot access patient medical-record APIs.
 - `Doctor` users can view, create, and update patient-domain records covered by the current permission setup.
-- `Nurse` users can view patient-domain records and can add/change their own visit and diagnosis notes, but do not have add/change permissions for other restricted patient-domain records.
+- `Nurse` users can view patient-domain records, create visits, add/change visit vitals, and add/change their own visit and diagnosis notes, but cannot create medications, allergies, or diagnoses.
 - Login is public.
 - Logout and current-user lookup require authentication.
 
