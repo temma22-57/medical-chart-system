@@ -49,6 +49,7 @@ class Command(BaseCommand):
                 "view_patient",
                 "view_visit",
                 "add_visit",
+                "delete_visit",
                 "view_visitnote",
                 "add_visitnote",
                 "change_visitnote",

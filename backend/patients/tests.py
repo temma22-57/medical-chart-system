@@ -216,6 +216,7 @@ class PatientApiTests(APITestCase):
                 "view_patient",
                 "view_visit",
                 "add_visit",
+                "delete_visit",
                 "view_visitnote",
                 "add_visitnote",
                 "change_visitnote",
@@ -871,6 +872,54 @@ class PatientApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(patient.visits.count(), 1)
         self.assertEqual(patient.visits.get().created_by, self.nurse)
+
+    def test_nurse_can_delete_own_recent_visit(self):
+        self.client.force_authenticate(user=self.nurse)
+        patient = Patient.objects.create(first_name="Riley", last_name="Brooks")
+        visit = Visit.objects.create(
+            patient=patient,
+            created_by=self.nurse,
+            visit_date="2026-04-13",
+            primary_care_physician="Dr. Smith",
+        )
+
+        response = self.client.delete(reverse("visit-detail", kwargs={"pk": visit.id}))
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(Visit.objects.count(), 0)
+
+    def test_nurse_cannot_delete_own_old_visit(self):
+        self.client.force_authenticate(user=self.nurse)
+        patient = Patient.objects.create(first_name="Riley", last_name="Brooks")
+        visit = Visit.objects.create(
+            patient=patient,
+            created_by=self.nurse,
+            visit_date="2026-04-13",
+            primary_care_physician="Dr. Smith",
+        )
+        Visit.objects.filter(id=visit.id).update(
+            created_at=timezone.now() - timedelta(hours=8, minutes=1)
+        )
+
+        response = self.client.delete(reverse("visit-detail", kwargs={"pk": visit.id}))
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(Visit.objects.count(), 1)
+
+    def test_nurse_cannot_delete_another_users_recent_visit(self):
+        self.client.force_authenticate(user=self.nurse)
+        patient = Patient.objects.create(first_name="Riley", last_name="Brooks")
+        visit = Visit.objects.create(
+            patient=patient,
+            created_by=self.doctor,
+            visit_date="2026-04-13",
+            primary_care_physician="Dr. Smith",
+        )
+
+        response = self.client.delete(reverse("visit-detail", kwargs={"pk": visit.id}))
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(Visit.objects.count(), 1)
 
     def test_nurse_can_create_and_update_vitals_for_visit(self):
         self.client.force_authenticate(user=self.nurse)

@@ -232,7 +232,7 @@ Role behavior in the current prototype:
 - Unauthenticated users cannot access patient record APIs.
 - Admin users can manage user accounts but cannot access patient record APIs or related patient data.
 - Doctor users can view, create, and update patient-domain records.
-- Nurse users can view patient-domain records, create visits, create/update visit vitals, and create/update their own visit and diagnosis notes, but cannot create medications, allergies, diagnoses, or other restricted medical-record data.
+- Nurse users can view patient-domain records, create visits, delete their own visits within the 8-hour cleanup window, create/update visit vitals, and create/update their own visit and diagnosis notes, but cannot create medications, allergies, diagnoses, or other restricted medical-record data.
 
 Admin user management supports:
 

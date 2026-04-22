@@ -240,6 +240,7 @@ Current demo roles:
 - `Nurse`
   - Can view patient-domain records.
   - Can create visits from the patient chart.
+  - Can delete visits they created less than 8 hours ago.
   - Can add and change visit vitals.
   - Can add and change only their own visit and diagnosis notes.
   - Cannot add medications, allergies, or diagnoses.
