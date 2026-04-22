@@ -157,12 +157,14 @@ class Command(BaseCommand):
                     "dosage": "10 mg",
                     "frequency": "Daily",
                     "duration": "Ongoing",
+                    "is_active": True,
                 },
                 {
                     "name": "Ibuprofen",
                     "dosage": "200 mg",
                     "frequency": "As needed",
                     "duration": "Short term",
+                    "is_active": False,
                 },
             ],
             diagnoses=[
@@ -235,6 +237,7 @@ class Command(BaseCommand):
                     "dosage": "90 mcg",
                     "frequency": "As needed",
                     "duration": "Ongoing",
+                    "is_active": True,
                 }
             ],
             diagnoses=[
@@ -319,6 +322,7 @@ class Command(BaseCommand):
                     "dosage": medication_data["dosage"],
                     "frequency": medication_data["frequency"],
                     "duration": medication_data.get("duration", ""),
+                    "is_active": medication_data.get("is_active", True),
                 },
             )
 

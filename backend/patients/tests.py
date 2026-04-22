@@ -409,6 +409,7 @@ class PatientApiTests(APITestCase):
         self.assertIn("primary_language", response.data)
         self.assertEqual(response.data["medications"][0]["name"], "Lisinopril")
         self.assertEqual(response.data["medications"][0]["duration"], "Ongoing")
+        self.assertTrue(response.data["medications"][0]["is_active"])
         self.assertEqual(response.data["diagnoses"][0]["name"], "Hypertension")
         self.assertEqual(response.data["diagnoses"][0]["diagnosis_code"], "I10")
         self.assertEqual(response.data["diagnoses"][0]["notes"][0]["content"], "Monitor blood pressure.")
@@ -522,7 +523,7 @@ class PatientApiTests(APITestCase):
         self.assertEqual(own_note.content, "Updated doctor note.")
         self.assertEqual(nurse_note.content, "Original nurse note.")
 
-    def test_create_and_update_medication_with_duration(self):
+    def test_create_and_update_medication_with_duration_and_status(self):
         self.client.force_authenticate(user=self.doctor)
         patient = Patient.objects.create(first_name="Casey", last_name="Rivera")
         payload = {
@@ -530,6 +531,7 @@ class PatientApiTests(APITestCase):
             "dosage": "500 mg",
             "frequency": "Twice daily",
             "duration": "10 days",
+            "is_active": True,
         }
 
         create_response = self.client.post(
@@ -540,15 +542,18 @@ class PatientApiTests(APITestCase):
         medication_id = create_response.data["id"]
         update_response = self.client.patch(
             reverse("medication-detail", kwargs={"pk": medication_id}),
-            {"duration": "14 days"},
+            {"duration": "14 days", "is_active": False},
             format="json",
         )
 
         self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(create_response.data["duration"], "10 days")
+        self.assertTrue(create_response.data["is_active"])
         self.assertEqual(update_response.status_code, status.HTTP_200_OK)
         self.assertEqual(update_response.data["duration"], "14 days")
+        self.assertFalse(update_response.data["is_active"])
         self.assertEqual(patient.medications.get().duration, "14 days")
+        self.assertFalse(patient.medications.get().is_active)
 
     def test_nurse_cannot_update_visit(self):
         self.client.force_authenticate(user=self.nurse)

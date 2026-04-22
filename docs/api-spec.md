@@ -385,6 +385,7 @@ Response:
       "dosage": "10 mg",
       "frequency": "Daily",
       "duration": "Ongoing",
+      "is_active": true,
       "created_at": "2026-04-15T04:18:00Z",
       "updated_at": "2026-04-15T04:18:00Z"
     }
@@ -722,6 +723,7 @@ Response:
     "dosage": "10 mg",
     "frequency": "Daily",
     "duration": "Ongoing",
+    "is_active": true,
     "created_at": "2026-04-15T04:18:00Z",
     "updated_at": "2026-04-15T04:18:00Z"
   }
@@ -743,7 +745,8 @@ Request:
   "name": "Lisinopril",
   "dosage": "10 mg",
   "frequency": "Daily",
-  "duration": "Ongoing"
+  "duration": "Ongoing",
+  "is_active": true
 }
 ```
 
@@ -772,7 +775,8 @@ Patch request:
 ```json
 {
   "frequency": "Twice daily",
-  "duration": "30 days"
+  "duration": "30 days",
+  "is_active": false
 }
 ```
 

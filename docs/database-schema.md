@@ -236,13 +236,14 @@ Fields:
 | `dosage` | `CharField(max_length=100)` | Required |
 | `frequency` | `CharField(max_length=100)` | Required |
 | `duration` | `CharField(max_length=100, blank=True)` | Optional |
+| `is_active` | `BooleanField(default=True)` | True when the patient is actively taking the medication |
 | `created_at` | `DateTimeField(auto_now_add=True)` | Created timestamp |
 | `updated_at` | `DateTimeField(auto_now=True)` | Updated timestamp |
 
 Ordering:
 
 ```text
-name
+-is_active, name
 ```
 
 Relationships:

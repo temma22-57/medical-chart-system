@@ -69,6 +69,7 @@ export interface Medication {
   dosage: string;
   frequency: string;
   duration?: string;
+  is_active: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -124,6 +125,7 @@ export interface MedicationPayload {
   dosage: string;
   frequency: string;
   duration?: string;
+  is_active?: boolean;
 }
 
 export interface DiagnosisPayload {

@@ -83,12 +83,13 @@ class Medication(models.Model):
     dosage = models.CharField(max_length=100)
     frequency = models.CharField(max_length=100)
     duration = models.CharField(max_length=100, blank=True)
+    is_active = models.BooleanField(default=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["name"]
+        ordering = ["-is_active", "name"]
 
     def __str__(self):
         return f"{self.name} for {self.patient}"

@@ -128,6 +128,7 @@ class PatientMedicationListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         return Medication.objects.filter(patient_id=self.kwargs["patient_id"]).order_by(
+            "-is_active",
             "name",
         )
 

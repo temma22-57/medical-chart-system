@@ -39,6 +39,7 @@ describe("PatientDetail", () => {
           dosage: "10 mg",
           frequency: "Daily",
           duration: "Ongoing",
+          is_active: true,
         },
       ],
       diagnoses: [
@@ -130,6 +131,7 @@ describe("PatientDetail", () => {
     expect(screen.getByText("I10")).toBeInTheDocument();
     expect(screen.getByText("Lisinopril")).toBeInTheDocument();
     expect(screen.getByText("Ongoing")).toBeInTheDocument();
+    expect(screen.getByText("Active")).toBeInTheDocument();
     expect(screen.getByText("Penicillin")).toBeInTheDocument();
     expect(screen.getByText("Medication review.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /set table order/i })).toBeInTheDocument();

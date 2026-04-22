@@ -52,6 +52,7 @@ const fieldLabels: Record<RecordType, Record<string, string>> = {
     dosage: "Dosage",
     frequency: "Frequency",
     duration: "Duration",
+    is_active: "Status",
   },
   diagnoses: {
     name: "Name",
@@ -83,6 +84,7 @@ const initialValues: Record<RecordType, FormValues> = {
     dosage: "",
     frequency: "",
     duration: "",
+    is_active: "true",
   },
   diagnoses: {
     name: "",
@@ -131,6 +133,7 @@ function valuesFromRecord(recordType: RecordType, record: Visit | Medication | D
       dosage: medication.dosage,
       frequency: medication.frequency,
       duration: medication.duration || "",
+      is_active: medication.is_active ? "true" : "false",
     };
   }
 
@@ -313,6 +316,7 @@ export default function PatientRelatedRecordFormPage({
           dosage: values.dosage,
           frequency: values.frequency,
           duration: values.duration,
+          is_active: values.is_active !== "false",
         };
         if (mode === "add") {
           await createMedication(patientId, payload);
@@ -533,6 +537,24 @@ export default function PatientRelatedRecordFormPage({
                         <MenuItem value="chronic">Chronic</MenuItem>
                         <MenuItem value="remission">Remission</MenuItem>
                         <MenuItem value="resolved">Resolved</MenuItem>
+                      </TextField>
+                    ) : field === "is_active" ? (
+                      <TextField
+                        key={field}
+                        fullWidth
+                        select
+                        label={label}
+                        required
+                        value={values[field] || "true"}
+                        onChange={(event) => setValues({ ...values, [field]: event.target.value })}
+                        sx={{
+                          "& .MuiOutlinedInput-root": {
+                            backgroundColor: "#f8fcfa",
+                          },
+                        }}
+                      >
+                        <MenuItem value="true">Active</MenuItem>
+                        <MenuItem value="false">Inactive</MenuItem>
                       </TextField>
                     ) : (
                       <TextField
