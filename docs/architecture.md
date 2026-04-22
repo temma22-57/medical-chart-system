@@ -73,9 +73,9 @@ The React frontend owns:
 - Login page.
 - Authenticated layout with navigation and patient search.
 - Patient list and patient create page.
-- Patient detail dashboard with demographics, latest vitals, visits, authored visit notes, medications, diagnoses, and allergies.
+- Patient detail dashboard with demographics, latest vitals, visits, authored visit notes, medications, diagnoses, authored diagnosis notes, and allergies.
 - User-specific patient detail table ordering for medications, diagnoses, allergies, and visits.
-- Add/edit flows for visits, visit notes, medications, diagnoses, allergies, and adding vitals to visits.
+- Add/edit flows for visits, visit notes, medications, diagnoses, diagnosis notes, allergies, and adding vitals to visits.
 - API calls through an axios service layer.
 
 Important frontend files:
@@ -111,6 +111,7 @@ Current routes:
 /patients/:id/medications/:recordId/edit
 /patients/:id/diagnoses/new
 /patients/:id/diagnoses/:recordId/edit
+/patients/:id/diagnoses/:recordId/notes
 /patients/:id/allergies/new
 /patients/:id/allergies/:recordId/edit
 ```
@@ -140,7 +141,7 @@ PatientDetail page
   -> PatientDetailView
   -> PatientDetailSerializer
   -> PostgreSQL Patient + related records
-  -> JSON response with medications, diagnoses, allergies, visits, visit notes, latest_vitals
+  -> JSON response with medications, diagnoses, diagnosis notes, allergies, visits, visit notes, latest_vitals
 ```
 
 Patient detail table-order preference flow:
@@ -237,7 +238,7 @@ Current demo roles:
   - Can view, add, and change patient-domain records.
 - `Nurse`
   - Can view patient-domain records.
-  - Can add and change only their own visit notes.
+  - Can add and change only their own visit and diagnosis notes.
   - Cannot add or change restricted patient-domain records.
 
 The frontend routes Admin users to `/admin/users` and hides patient navigation/search for that role. The backend also enforces the separation: Admin-only user-management endpoints require the `Admin` group, and patient-domain permissions explicitly reject Admin users.
@@ -272,4 +273,5 @@ npm run lint
 - Audit logging is not implemented yet.
 - Visit staff attribution is stored as text, not linked to user accounts.
 - Visit notes are linked to user accounts, with one note per user per visit.
+- Diagnosis notes are linked to user accounts, with one note per user per diagnosis.
 - CORS is open in development settings.

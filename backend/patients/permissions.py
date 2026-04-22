@@ -26,3 +26,14 @@ class VisitNotePermissions(ViewModelPermissions):
             return True
 
         return obj.author_id == request.user.id
+
+
+class DiagnosisNotePermissions(ViewModelPermissions):
+    def has_object_permission(self, request, view, obj):
+        if not super().has_object_permission(request, view, obj):
+            return False
+
+        if request.method in ("GET", "HEAD", "OPTIONS"):
+            return True
+
+        return obj.author_id == request.user.id

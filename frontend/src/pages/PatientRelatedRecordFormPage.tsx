@@ -60,7 +60,6 @@ const fieldLabels: Record<RecordType, Record<string, string>> = {
     diagnosis_code: "Diagnosis code",
     provider_name: "Provider",
     resolution_date: "Resolution date",
-    notes: "Notes",
   },
   allergies: {
     substance: "Substance",
@@ -92,7 +91,6 @@ const initialValues: Record<RecordType, FormValues> = {
     diagnosis_code: "",
     provider_name: "",
     resolution_date: "",
-    notes: "",
   },
   allergies: {
     substance: "",
@@ -145,7 +143,6 @@ function valuesFromRecord(recordType: RecordType, record: Visit | Medication | D
       diagnosis_code: diagnosis.diagnosis_code || "",
       provider_name: diagnosis.provider_name || "",
       resolution_date: diagnosis.resolution_date || "",
-      notes: diagnosis.notes || "",
     };
   }
 
@@ -330,7 +327,6 @@ export default function PatientRelatedRecordFormPage({
           diagnosis_code: values.diagnosis_code,
           provider_name: values.provider_name,
           resolution_date: values.resolution_date || undefined,
-          notes: values.notes,
         };
         if (mode === "add") {
           await createDiagnosis(patientId, payload);

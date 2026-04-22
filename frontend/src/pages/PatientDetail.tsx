@@ -29,6 +29,7 @@ import { getPatient } from "../features/patients/patientService";
 import type {
   Allergy,
   Diagnosis,
+  DiagnosisNote,
   Medication,
   PatientDetail as PatientDetailType,
   Visit,
@@ -119,6 +120,10 @@ function SectionTitle({
 
 function EmptyState({ children }: { children: string }) {
   return <Typography sx={{ color: "#c4ccbe" }}>{children}</Typography>;
+}
+
+function noteAuthorLabel(note: DiagnosisNote) {
+  return note.author_display_name || note.author_username;
 }
 
 function VisitsCard({ patientId, visits }: { patientId: number; visits: Visit[] }) {
@@ -281,16 +286,41 @@ function DiagnosesCard({
                   <TableCell>{displayValue(diagnosis.diagnosis_code)}</TableCell>
                   <TableCell>{displayValue(diagnosis.provider_name)}</TableCell>
                   <TableCell>
-                    <Box sx={notesClampSx}>{displayValue(diagnosis.notes)}</Box>
+                    {diagnosis.notes.length === 0 ? (
+                      <Typography sx={{ color: "#c4ccbe" }}>No notes recorded.</Typography>
+                    ) : (
+                      <Box sx={visitNotesBoxSx}>
+                        <Stack spacing={1}>
+                          {diagnosis.notes.map((note) => (
+                            <Box key={note.id}>
+                              <Typography variant="caption" sx={{ color: "#c4ccbe" }}>
+                                {noteAuthorLabel(note)}
+                                {note.updated_at ? ` - ${formatTimestamp(note.updated_at)}` : ""}
+                              </Typography>
+                              <Typography sx={notesClampSx}>{note.content}</Typography>
+                            </Box>
+                          ))}
+                        </Stack>
+                      </Box>
+                    )}
                   </TableCell>
                   <TableCell>
-                    <Button
-                      component={RouterLink}
-                      to={`/patients/${patientId}/diagnoses/${diagnosis.id}/edit`}
-                      size="small"
-                    >
-                      Edit
-                    </Button>
+                    <Stack spacing={0.5}>
+                      <Button
+                        component={RouterLink}
+                        to={`/patients/${patientId}/diagnoses/${diagnosis.id}/notes`}
+                        size="small"
+                      >
+                        Notes
+                      </Button>
+                      <Button
+                        component={RouterLink}
+                        to={`/patients/${patientId}/diagnoses/${diagnosis.id}/edit`}
+                        size="small"
+                      >
+                        Edit
+                      </Button>
+                    </Stack>
                   </TableCell>
                 </TableRow>
               ))}

@@ -3,10 +3,11 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import ValidationError
 from rest_framework import generics
-from .models import Allergy, Diagnosis, Medication, Patient, Visit, VisitNote, Vital
-from .permissions import ViewModelPermissions, VisitNotePermissions
+from .models import Allergy, Diagnosis, DiagnosisNote, Medication, Patient, Visit, VisitNote, Vital
+from .permissions import DiagnosisNotePermissions, ViewModelPermissions, VisitNotePermissions
 from .serializers import (
     AllergySerializer,
+    DiagnosisNoteSerializer,
     DiagnosisSerializer,
     MedicationSerializer,
     PatientDetailSerializer,
@@ -41,6 +42,8 @@ class PatientDetailView(generics.RetrieveAPIView):
     queryset = Patient.objects.prefetch_related(
         "medications",
         "diagnoses",
+        "diagnoses__note_entries",
+        "diagnoses__note_entries__author",
         "allergies",
         "visits",
         "visits__note_entries",
@@ -157,6 +160,31 @@ class DiagnosisDetailView(generics.RetrieveUpdateAPIView):
     queryset = Diagnosis.objects.all()
     serializer_class = DiagnosisSerializer
     permission_classes = [ViewModelPermissions]
+
+
+class DiagnosisNoteListCreateView(generics.ListCreateAPIView):
+    serializer_class = DiagnosisNoteSerializer
+    permission_classes = [DiagnosisNotePermissions]
+
+    def get_queryset(self):
+        return (
+            DiagnosisNote.objects.filter(diagnosis_id=self.kwargs["diagnosis_id"])
+            .select_related("author")
+            .order_by("created_at", "id")
+        )
+
+    def perform_create(self, serializer):
+        diagnosis = get_object_or_404(Diagnosis, id=self.kwargs["diagnosis_id"])
+        if DiagnosisNote.objects.filter(diagnosis=diagnosis, author=self.request.user).exists():
+            raise ValidationError("You already have a note for this diagnosis.")
+
+        serializer.save(diagnosis=diagnosis, author=self.request.user)
+
+
+class DiagnosisNoteDetailView(generics.RetrieveUpdateAPIView):
+    queryset = DiagnosisNote.objects.select_related("author", "diagnosis")
+    serializer_class = DiagnosisNoteSerializer
+    permission_classes = [DiagnosisNotePermissions]
 
 
 class PatientAllergyListCreateView(generics.ListCreateAPIView):

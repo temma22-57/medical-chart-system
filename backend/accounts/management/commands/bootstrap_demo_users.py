@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
 from django.core.management.base import BaseCommand
 
-from patients.models import Allergy, Diagnosis, Medication, Patient, Visit, VisitNote, Vital
+from patients.models import Allergy, Diagnosis, DiagnosisNote, Medication, Patient, Visit, VisitNote, Vital
 
 
 class Command(BaseCommand):
@@ -28,6 +28,9 @@ class Command(BaseCommand):
                 "view_diagnosis",
                 "add_diagnosis",
                 "change_diagnosis",
+                "view_diagnosisnote",
+                "add_diagnosisnote",
+                "change_diagnosisnote",
                 "view_allergy",
                 "add_allergy",
                 "change_allergy",
@@ -46,6 +49,9 @@ class Command(BaseCommand):
                 "change_visitnote",
                 "view_medication",
                 "view_diagnosis",
+                "view_diagnosisnote",
+                "add_diagnosisnote",
+                "change_diagnosisnote",
                 "view_allergy",
                 "view_vital",
             ],
@@ -166,7 +172,16 @@ class Command(BaseCommand):
                     "date_diagnosed": "2026-03-15",
                     "diagnosis_code": "I10",
                     "provider_name": "Dr. Morgan Patel",
-                    "notes": "Monitor blood pressure and medication response.",
+                    "notes": [
+                        {
+                            "author": doctor,
+                            "content": "Monitor blood pressure and medication response.",
+                        },
+                        {
+                            "author": nurse,
+                            "content": "Reviewed lifestyle changes and home readings.",
+                        },
+                    ],
                 },
                 {
                     "name": "Tension headache",
@@ -175,7 +190,12 @@ class Command(BaseCommand):
                     "diagnosis_code": "G44.209",
                     "provider_name": "Dr. Morgan Patel",
                     "resolution_date": "2026-04-10",
-                    "notes": "Symptoms improved with conservative care.",
+                    "notes": [
+                        {
+                            "author": doctor,
+                            "content": "Symptoms improved with conservative care.",
+                        }
+                    ],
                 },
             ],
             allergies=[
@@ -224,7 +244,12 @@ class Command(BaseCommand):
                     "date_diagnosed": "2024-08-18",
                     "diagnosis_code": "J45.909",
                     "provider_name": "Dr. Elena Smith",
-                    "notes": "Controlled with rescue inhaler.",
+                    "notes": [
+                        {
+                            "author": doctor,
+                            "content": "Controlled with rescue inhaler.",
+                        }
+                    ],
                 },
                 {
                     "name": "Seasonal allergic rhinitis",
@@ -232,7 +257,16 @@ class Command(BaseCommand):
                     "date_diagnosed": "2026-04-12",
                     "diagnosis_code": "J30.2",
                     "provider_name": "Dr. Elena Smith",
-                    "notes": "Spring pollen triggers congestion.",
+                    "notes": [
+                        {
+                            "author": doctor,
+                            "content": "Spring pollen triggers congestion.",
+                        },
+                        {
+                            "author": nurse,
+                            "content": "Patient reports worse symptoms after outdoor activity.",
+                        },
+                    ],
                 },
             ],
             allergies=[
@@ -289,7 +323,8 @@ class Command(BaseCommand):
             )
 
         for diagnosis_data in diagnoses:
-            Diagnosis.objects.update_or_create(
+            notes_data = diagnosis_data.pop("notes")
+            diagnosis, _ = Diagnosis.objects.update_or_create(
                 patient=patient,
                 name=diagnosis_data["name"],
                 date_diagnosed=diagnosis_data["date_diagnosed"],
@@ -298,9 +333,14 @@ class Command(BaseCommand):
                     "diagnosis_code": diagnosis_data.get("diagnosis_code", ""),
                     "provider_name": diagnosis_data.get("provider_name", ""),
                     "resolution_date": diagnosis_data.get("resolution_date"),
-                    "notes": diagnosis_data.get("notes", ""),
                 },
             )
+            for note_data in notes_data:
+                DiagnosisNote.objects.update_or_create(
+                    diagnosis=diagnosis,
+                    author=note_data["author"],
+                    defaults={"content": note_data["content"]},
+                )
 
         for allergy_data in allergies:
             Allergy.objects.update_or_create(

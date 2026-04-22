@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { getCurrentUser, hasAuthToken, logout } from "./features/auth/authService";
 import type { CurrentUser } from "./features/auth/authService";
 import AuthenticatedLayout from "./components/AuthenticatedLayout";
+import DiagnosisNotesPage from "./pages/DiagnosisNotesPage";
 import LoginPage from "./pages/LoginPage";
 import PatientCreatePage from "./pages/PatientCreatePage";
 import PatientDetail from "./pages/PatientDetail";
@@ -188,6 +189,16 @@ function App() {
               <Navigate to="/admin/users" replace />
             ) : (
               <PatientRelatedRecordFormPage recordType="diagnoses" mode="edit" />
+            )
+          }
+        />
+        <Route
+          path="/patients/:id/diagnoses/:recordId/notes"
+          element={
+            isAdmin ? (
+              <Navigate to="/admin/users" replace />
+            ) : (
+              <DiagnosisNotesPage currentUser={currentUser!} />
             )
           }
         />

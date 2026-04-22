@@ -36,6 +36,18 @@ export interface VisitNote {
   updated_at?: string;
 }
 
+export interface DiagnosisNote {
+  id: number;
+  diagnosis: number;
+  author: number;
+  author_username: string;
+  author_display_name: string;
+  content: string;
+  can_edit: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface Vital {
   id: number;
   visit: number;
@@ -70,7 +82,7 @@ export interface Diagnosis {
   diagnosis_code?: string;
   provider_name?: string;
   resolution_date?: string | null;
-  notes?: string;
+  notes: DiagnosisNote[];
   created_at?: string;
   updated_at?: string;
 }
@@ -103,6 +115,10 @@ export interface VisitNotePayload {
   content: string;
 }
 
+export interface DiagnosisNotePayload {
+  content: string;
+}
+
 export interface MedicationPayload {
   name: string;
   dosage: string;
@@ -117,7 +133,6 @@ export interface DiagnosisPayload {
   diagnosis_code?: string;
   provider_name?: string;
   resolution_date?: string;
-  notes?: string;
 }
 
 export interface AllergyPayload {
@@ -184,6 +199,22 @@ export const updateVisitNote = async (
   note: Partial<VisitNotePayload>,
 ): Promise<VisitNote> => {
   const res = await api.patch(`/visit-notes/${noteId}/`, note);
+  return res.data;
+};
+
+export const createDiagnosisNote = async (
+  diagnosisId: number,
+  note: DiagnosisNotePayload,
+): Promise<DiagnosisNote> => {
+  const res = await api.post(`/diagnoses/${diagnosisId}/notes/`, note);
+  return res.data;
+};
+
+export const updateDiagnosisNote = async (
+  noteId: number,
+  note: Partial<DiagnosisNotePayload>,
+): Promise<DiagnosisNote> => {
+  const res = await api.patch(`/diagnosis-notes/${noteId}/`, note);
   return res.data;
 };
 

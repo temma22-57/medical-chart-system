@@ -36,6 +36,11 @@ Medication
 
 Diagnosis
   many-to-one Patient
+  one-to-many DiagnosisNote
+
+DiagnosisNote
+  many-to-one Diagnosis
+  many-to-one auth.User
 
 Allergy
   many-to-one Patient
@@ -48,8 +53,8 @@ Django provides the user, group, and permission tables. The `accounts` app also 
 Important project usage:
 
 - `Admin` group has no patient-domain permissions and is used by custom API permissions for user-management endpoints.
-- `Doctor` group has view/add/change permissions for patients, visits, visit notes, medications, diagnoses, allergies, and vitals.
-- `Nurse` group has view permissions for patients, visits, medications, diagnoses, allergies, and vitals plus view/add/change permissions for their own visit notes.
+- `Doctor` group has view/add/change permissions for patients, visits, visit notes, medications, diagnoses, diagnosis notes, allergies, and vitals.
+- `Nurse` group has view permissions for patients, visits, medications, diagnoses, allergies, and vitals plus view/add/change permissions for their own visit and diagnosis notes.
 - DRF token authentication stores API tokens in the `authtoken_token` table.
 
 ## AccountProfile
@@ -263,7 +268,6 @@ Fields:
 | `diagnosis_code` | `CharField(max_length=30, blank=True)` | Optional ICD-style code placeholder |
 | `provider_name` | `CharField(max_length=150, blank=True)` | Optional text attribution |
 | `resolution_date` | `DateField(null=True, blank=True)` | Optional |
-| `notes` | `TextField(blank=True)` | Optional |
 | `created_at` | `DateTimeField(auto_now_add=True)` | Created timestamp |
 | `updated_at` | `DateTimeField(auto_now=True)` | Updated timestamp |
 
@@ -277,6 +281,37 @@ Relationships:
 
 - Each diagnosis belongs to exactly one patient.
 - A patient can have many diagnoses.
+- `Diagnosis.note_entries` returns authored notes for that diagnosis.
+
+## DiagnosisNote
+
+Django model: `patients.models.DiagnosisNote`
+
+Purpose: stores authored diagnosis note content separately from the diagnosis record.
+
+Fields:
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `id` | Auto primary key | Django default primary key |
+| `diagnosis` | `ForeignKey(Diagnosis, related_name="note_entries", on_delete=CASCADE)` | Required |
+| `author` | `ForeignKey(settings.AUTH_USER_MODEL, related_name="diagnosis_notes", on_delete=CASCADE)` | Required |
+| `content` | `TextField()` | Required note text |
+| `created_at` | `DateTimeField(auto_now_add=True)` | Created timestamp |
+| `updated_at` | `DateTimeField(auto_now=True)` | Updated timestamp |
+
+Constraints:
+
+```text
+unique diagnosis + author
+```
+
+Practical effect:
+
+- A user can have one editable note per diagnosis.
+- Notes from all users are visible to users with diagnosis-note view permission.
+- The API allows users to edit only their own diagnosis note.
+- Legacy `Diagnosis.notes` text is migrated into `DiagnosisNote` rows authored by an inactive `legacy_diagnosis_note` user.
 
 ## Allergy
 
@@ -314,6 +349,7 @@ Practical effect:
 
 - Deleting a patient deletes their visits, medications, diagnoses, and allergies.
 - Deleting a visit deletes its visit notes and vitals.
+- Deleting a diagnosis deletes its diagnosis notes.
 
 The current API does not expose delete endpoints, but the database relationship behavior is still part of the model design.
 

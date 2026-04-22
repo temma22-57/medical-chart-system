@@ -1,6 +1,6 @@
 from django.db.models import Case, IntegerField, Value, When
 from rest_framework import serializers
-from .models import Allergy, Diagnosis, Medication, Patient, Visit, VisitNote, Vital
+from .models import Allergy, Diagnosis, DiagnosisNote, Medication, Patient, Visit, VisitNote, Vital
 
 
 def order_diagnoses(queryset):
@@ -78,6 +78,50 @@ class VisitNoteSerializer(serializers.ModelSerializer):
         ]
 
 
+class DiagnosisNoteSerializer(serializers.ModelSerializer):
+    author = serializers.IntegerField(source="author_id", read_only=True)
+    author_username = serializers.CharField(source="author.username", read_only=True)
+    author_display_name = serializers.SerializerMethodField()
+    can_edit = serializers.SerializerMethodField()
+
+    def get_author_display_name(self, note):
+        full_name = note.author.get_full_name()
+        return full_name or note.author.username
+
+    def get_can_edit(self, note):
+        request = self.context.get("request")
+        return bool(
+            request
+            and request.user
+            and request.user.is_authenticated
+            and note.author_id == request.user.id
+        )
+
+    class Meta:
+        model = DiagnosisNote
+        fields = [
+            "id",
+            "diagnosis",
+            "author",
+            "author_username",
+            "author_display_name",
+            "content",
+            "can_edit",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "diagnosis",
+            "author",
+            "author_username",
+            "author_display_name",
+            "can_edit",
+            "created_at",
+            "updated_at",
+        ]
+
+
 class VisitSerializer(serializers.ModelSerializer):
     vitals = VitalSerializer(many=True, read_only=True)
     notes = VisitNoteSerializer(source="note_entries", many=True, read_only=True)
@@ -115,6 +159,8 @@ class MedicationSerializer(serializers.ModelSerializer):
 
 
 class DiagnosisSerializer(serializers.ModelSerializer):
+    notes = DiagnosisNoteSerializer(source="note_entries", many=True, read_only=True)
+
     class Meta:
         model = Diagnosis
         fields = [
@@ -183,7 +229,11 @@ class PatientDetailSerializer(serializers.ModelSerializer):
 
     def get_diagnoses(self, patient):
         diagnoses = order_diagnoses(patient.diagnoses.all())
-        return DiagnosisSerializer(diagnoses, many=True).data
+        return DiagnosisSerializer(
+            diagnoses,
+            many=True,
+            context=self.context,
+        ).data
 
     def get_latest_vitals(self, patient):
         latest = (

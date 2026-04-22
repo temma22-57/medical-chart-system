@@ -112,7 +112,6 @@ class Diagnosis(models.Model):
     diagnosis_code = models.CharField(max_length=30, blank=True)
     provider_name = models.CharField(max_length=150, blank=True)
     resolution_date = models.DateField(null=True, blank=True)
-    notes = models.TextField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -122,6 +121,35 @@ class Diagnosis(models.Model):
 
     def __str__(self):
         return f"{self.name} diagnosis for {self.patient}"
+
+
+class DiagnosisNote(models.Model):
+    diagnosis = models.ForeignKey(
+        Diagnosis,
+        related_name="note_entries",
+        on_delete=models.CASCADE,
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name="diagnosis_notes",
+        on_delete=models.CASCADE,
+    )
+    content = models.TextField()
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["diagnosis", "author"],
+                name="unique_diagnosis_note_per_author",
+            )
+        ]
+
+    def __str__(self):
+        return f"Note by {self.author} for {self.diagnosis}"
 
 
 class Allergy(models.Model):

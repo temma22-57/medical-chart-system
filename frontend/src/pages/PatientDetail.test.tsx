@@ -50,7 +50,18 @@ describe("PatientDetail", () => {
           date_diagnosed: "2026-04-01",
           diagnosis_code: "I10",
           provider_name: "Dr. Smith",
-          notes: "Monitor blood pressure.",
+          notes: [
+            {
+              id: 12,
+              diagnosis: 8,
+              author: 2,
+              author_username: "doctor",
+              author_display_name: "Dr. Smith",
+              content: "Monitor blood pressure.",
+              can_edit: false,
+              updated_at: "2026-04-13T17:00:00Z",
+            },
+          ],
         },
       ],
       allergies: [

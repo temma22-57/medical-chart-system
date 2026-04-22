@@ -21,7 +21,7 @@ The project uses Django users, groups, and model permissions.
 - Unauthenticated users cannot access patient medical-record APIs.
 - `Admin` users can manage user accounts but cannot access patient medical-record APIs.
 - `Doctor` users can view, create, and update patient-domain records covered by the current permission setup.
-- `Nurse` users can view patient-domain records and can add/change their own visit notes, but do not have add/change permissions for other restricted patient-domain records.
+- `Nurse` users can view patient-domain records and can add/change their own visit and diagnosis notes, but do not have add/change permissions for other restricted patient-domain records.
 - Login is public.
 - Logout and current-user lookup require authentication.
 
@@ -399,7 +399,19 @@ Response:
       "diagnosis_code": "I10",
       "provider_name": "Dr. Morgan Patel",
       "resolution_date": null,
-      "notes": "Monitor blood pressure and medication response.",
+      "notes": [
+        {
+          "id": 1,
+          "diagnosis": 1,
+          "author": 2,
+          "author_username": "doctor",
+          "author_display_name": "doctor",
+          "content": "Monitor blood pressure and medication response.",
+          "can_edit": false,
+          "created_at": "2026-04-15T04:18:00Z",
+          "updated_at": "2026-04-15T04:18:00Z"
+        }
+      ],
       "created_at": "2026-04-15T04:18:00Z",
       "updated_at": "2026-04-15T04:18:00Z"
     }
@@ -791,7 +803,19 @@ Response:
     "diagnosis_code": "I10",
     "provider_name": "Dr. Morgan Patel",
     "resolution_date": null,
-    "notes": "Monitor blood pressure and medication response.",
+    "notes": [
+      {
+        "id": 1,
+        "diagnosis": 1,
+        "author": 2,
+        "author_username": "doctor",
+        "author_display_name": "doctor",
+        "content": "Monitor blood pressure and medication response.",
+        "can_edit": false,
+        "created_at": "2026-04-15T04:18:00Z",
+        "updated_at": "2026-04-15T04:18:00Z"
+      }
+    ],
     "created_at": "2026-04-15T04:18:00Z",
     "updated_at": "2026-04-15T04:18:00Z"
   }
@@ -815,8 +839,7 @@ Request:
   "date_diagnosed": "2026-03-15",
   "diagnosis_code": "I10",
   "provider_name": "Dr. Morgan Patel",
-  "resolution_date": null,
-  "notes": "Monitor blood pressure and medication response."
+  "resolution_date": null
 }
 ```
 
@@ -850,6 +873,91 @@ Patch request:
 ```
 
 Response: updated diagnosis object.
+
+## Diagnosis Note Endpoints
+
+Diagnosis notes are authored records linked to both a diagnosis and a user account. The current implementation allows one note per user per diagnosis.
+
+### GET `/api/diagnoses/{diagnosis_id}/notes/`
+
+Lists notes for a diagnosis.
+
+Auth required: yes
+
+Permission required: `patients.view_diagnosisnote`
+
+Response:
+
+```json
+[
+  {
+    "id": 1,
+    "diagnosis": 1,
+    "author": 2,
+    "author_username": "doctor",
+    "author_display_name": "doctor",
+    "content": "Monitor blood pressure and medication response.",
+    "can_edit": true,
+    "created_at": "2026-04-15T04:18:00Z",
+    "updated_at": "2026-04-15T04:18:00Z"
+  }
+]
+```
+
+### POST `/api/diagnoses/{diagnosis_id}/notes/`
+
+Creates the authenticated user's note for a diagnosis.
+
+Auth required: yes
+
+Permission required: `patients.add_diagnosisnote`
+
+Request:
+
+```json
+{
+  "content": "Monitor blood pressure and medication response."
+}
+```
+
+Response: created diagnosis note object.
+
+Notes:
+
+- A user can create one note per diagnosis.
+- Creating a second note for the same diagnosis returns `400 Bad Request`.
+
+### GET `/api/diagnosis-notes/{id}/`
+
+Retrieves one diagnosis note.
+
+Auth required: yes
+
+Permission required: `patients.view_diagnosisnote`
+
+Response: diagnosis note object.
+
+### PUT/PATCH `/api/diagnosis-notes/{id}/`
+
+Updates the authenticated user's own diagnosis note.
+
+Auth required: yes
+
+Permission required: `patients.change_diagnosisnote`
+
+Request:
+
+```json
+{
+  "content": "Updated diagnosis note."
+}
+```
+
+Response: updated diagnosis note object.
+
+Notes:
+
+- Notes written by other users remain visible but cannot be edited by the current user.
 
 ## Allergy Endpoints
 
