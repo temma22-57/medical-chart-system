@@ -16,6 +16,7 @@ import {
   createAllergy,
   createDiagnosis,
   createMedication,
+  createVital,
   createVisit,
   getPatient,
   updateAllergy,
@@ -23,7 +24,14 @@ import {
   updateMedication,
   updateVisit,
 } from "../features/patients/patientService";
-import type { Allergy, Diagnosis, Medication, PatientDetail, Visit } from "../features/patients/patientService";
+import type {
+  Allergy,
+  Diagnosis,
+  Medication,
+  PatientDetail,
+  VitalPayload,
+  Visit,
+} from "../features/patients/patientService";
 
 type RecordType = "visits" | "medications" | "diagnoses" | "allergies";
 type FormValues = Record<string, string>;
@@ -65,6 +73,11 @@ const initialValues: Record<RecordType, FormValues> = {
     visit_date: "",
     primary_care_physician: "",
     staff_assigned: "",
+    height: "",
+    weight: "",
+    blood_pressure: "",
+    heart_rate: "",
+    temperature: "",
   },
   medications: {
     name: "",
@@ -175,6 +188,37 @@ function descriptionFor(recordType: RecordType) {
   return "Track allergy substances and any noted reactions in the patient record.";
 }
 
+const vitalFieldLabels: Record<keyof VitalPayload, string> = {
+  height: "Height",
+  weight: "Weight",
+  blood_pressure: "Blood pressure",
+  heart_rate: "Heart rate",
+  temperature: "Temperature",
+};
+
+const vitalFields = Object.entries(vitalFieldLabels) as [keyof VitalPayload, string][];
+
+function buildOptionalVitalPayload(values: FormValues): VitalPayload | null {
+  const vitalValues = vitalFields.map(([field]) => String(values[field] || "").trim());
+  const hasAnyVitals = vitalValues.some(Boolean);
+
+  if (!hasAnyVitals) {
+    return null;
+  }
+
+  if (!vitalValues.every(Boolean)) {
+    throw new Error("complete_vitals_required");
+  }
+
+  return {
+    height: values.height.trim(),
+    weight: values.weight.trim(),
+    blood_pressure: values.blood_pressure.trim(),
+    heart_rate: Number(values.heart_rate),
+    temperature: values.temperature.trim(),
+  };
+}
+
 export default function PatientRelatedRecordFormPage({
   recordType,
   mode,
@@ -257,7 +301,12 @@ export default function PatientRelatedRecordFormPage({
           staff_assigned: values.staff_assigned,
         };
         if (mode === "add") {
-          await createVisit(patientId, payload);
+          const visit = await createVisit(patientId, payload);
+          const vitalPayload = buildOptionalVitalPayload(values);
+
+          if (vitalPayload) {
+            await createVital(visit.id, vitalPayload);
+          }
         } else {
           await updateVisit(relatedRecordId, payload);
         }
@@ -301,8 +350,15 @@ export default function PatientRelatedRecordFormPage({
       }
 
       navigate(`/patients/${patientId}`);
-    } catch {
-      setError("Unable to save this record.");
+    } catch (caughtError) {
+      if (
+        caughtError instanceof Error &&
+        caughtError.message === "complete_vitals_required"
+      ) {
+        setError("If you enter any initial vitals, please complete all vitals fields.");
+      } else {
+        setError("Unable to save this record.");
+      }
     } finally {
       setSaving(false);
     }
@@ -324,6 +380,7 @@ export default function PatientRelatedRecordFormPage({
     "notes",
   ];
   const patientName = patient ? `${patient.first_name} ${patient.last_name}` : "Patient";
+  const showInitialVitalsFields = recordType === "visits" && mode === "add";
   const visitWithoutVitals =
     recordType === "visits" &&
     mode === "edit" &&
@@ -504,6 +561,57 @@ export default function PatientRelatedRecordFormPage({
                     ),
                   )}
                 </Box>
+
+                {showInitialVitalsFields && (
+                  <Paper
+                    variant="outlined"
+                    sx={{
+                      backgroundColor: "rgba(248, 252, 250, 0.08)",
+                      borderColor: "#3a453b",
+                      p: 2,
+                    }}
+                  >
+                    <Stack spacing={2}>
+                      <Box>
+                        <Typography variant="h6" sx={{ color: "#f4f7f1", fontWeight: 700 }}>
+                          Initial Vitals
+                        </Typography>
+                        <Typography sx={{ color: "#c4ccbe", mt: 0.5 }}>
+                          Leave all vitals blank to create the visit without vitals, or complete every vitals field to save an initial entry.
+                        </Typography>
+                      </Box>
+                      <Box
+                        sx={{
+                          display: "grid",
+                          gap: 2,
+                          gridTemplateColumns: { xs: "1fr", md: "repeat(3, minmax(0, 1fr))" },
+                        }}
+                      >
+                        {vitalFields.map(([field, label]) => (
+                          <TextField
+                            key={field}
+                            fullWidth
+                            label={label}
+                            type={field === "blood_pressure" ? "text" : "number"}
+                            value={values[field] || ""}
+                            onChange={(event) => setValues({ ...values, [field]: event.target.value })}
+                            slotProps={{
+                              htmlInput: {
+                                min: field === "heart_rate" ? 0 : undefined,
+                                step: field === "heart_rate" ? 1 : 0.01,
+                              },
+                            }}
+                            sx={{
+                              "& .MuiOutlinedInput-root": {
+                                backgroundColor: "#f8fcfa",
+                              },
+                            }}
+                          />
+                        ))}
+                      </Box>
+                    </Stack>
+                  </Paper>
+                )}
 
                 <Stack
                   direction={{ xs: "column", sm: "row" }}

@@ -1,26 +1,86 @@
 import { useState } from "react";
 import { Box, Button, Chip, Paper, Stack, TextField, Typography } from "@mui/material";
-import { login } from "../features/auth/authService";
-import type { CurrentUser } from "../features/auth/authService";
+import { login, resendMfaCode, verifyMfaCode } from "../features/auth/authService";
+import type { CurrentUser, LoginResponse } from "../features/auth/authService";
 
 interface LoginPageProps {
-  onLogin: (user: CurrentUser) => void;
+  onLogin: (user: CurrentUser, authNotice?: string) => void;
 }
 
 export default function LoginPage({ onLogin }: LoginPageProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [challengeId, setChallengeId] = useState("");
+  const [mfaStep, setMfaStep] = useState<"credentials" | "verify" | "delivery_failed">(
+    "credentials",
+  );
+  const [maskedEmail, setMaskedEmail] = useState("");
+  const [code, setCode] = useState("");
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const applyLoginResponse = (response: LoginResponse) => {
+    if (!response.mfa_required && response.user) {
+      onLogin(response.user, response.warning);
+      return;
+    }
+
+    setChallengeId(response.challenge_id || "");
+    setMaskedEmail(
+      response.selected_method?.masked_destination ||
+        response.available_methods?.[0]?.masked_destination ||
+        "",
+    );
+    setMessage(response.detail || "");
+    setMfaStep(response.next_step === "delivery_failed" ? "delivery_failed" : "verify");
+    setCode("");
+  };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError("");
+    setMessage("");
+    setLoading(true);
 
     try {
       const response = await login(username, password);
-      onLogin(response.user);
-    } catch {
-      setError("Invalid username or password.");
+      applyLoginResponse(response);
+    } catch (loginError: unknown) {
+      setError(getErrorMessage(loginError, "Unable to sign in with those credentials right now."));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyCode = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const response = await verifyMfaCode(challengeId, code);
+      if (response.user) {
+        onLogin(response.user, response.warning);
+      }
+    } catch (verifyError: unknown) {
+      setError(getErrorMessage(verifyError, "That verification code could not be accepted."));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setError("");
+    setLoading(true);
+
+    try {
+      const response = await resendMfaCode(challengeId);
+      setMessage(response.detail || "A new verification code was sent.");
+    } catch (resendError: unknown) {
+      setError(getErrorMessage(resendError, "Unable to resend the verification code right now."));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -108,7 +168,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                     Doctor and Nurse accounts are available after bootstrap.
                   </Typography>
                   <Typography sx={{ color: "#d8f1e8", mt: 0.5 }}>
-                    Use a Doctor or Nurse demo account after running the bootstrap command.
+                    Use a Doctor or Nurse demo account after running the bootstrap command. MFA is used when an email address is configured.
                   </Typography>
                 </Paper>
                 <Typography sx={{ color: "#d8f1e8" }}>
@@ -135,7 +195,8 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                 Enter your credentials to continue into the charting workspace.
               </Typography>
 
-              <Box component="form" onSubmit={handleSubmit}>
+              {mfaStep === "credentials" ? (
+                <Box component="form" onSubmit={handleSubmit}>
                 <Stack spacing={2}>
                   <TextField
                     fullWidth
@@ -182,6 +243,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                   <Button
                     size="large"
                     type="submit"
+                    disabled={loading}
                     variant="contained"
                     sx={{
                       backgroundColor: "#153f37",
@@ -192,14 +254,117 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                       },
                     }}
                   >
-                    Log in
+                    {loading ? "Signing in..." : "Log in"}
                   </Button>
                 </Stack>
-              </Box>
+                </Box>
+              ) : null}
+
+              {mfaStep === "verify" ? (
+                <Box component="form" onSubmit={handleVerifyCode}>
+                  <Stack spacing={2}>
+                    <Paper
+                      variant="outlined"
+                      sx={{ backgroundColor: "#eef8f3", borderColor: "#cfe0d8", color: "#153f37", p: 1.5 }}
+                    >
+                      <Typography>
+                        {message ||
+                          `Enter the 8-digit code sent to ${maskedEmail || "your email address"}.`}
+                      </Typography>
+                    </Paper>
+                    <TextField
+                      fullWidth
+                      label="Verification code"
+                      inputMode="numeric"
+                      slotProps={{ htmlInput: { maxLength: 8 } }}
+                      placeholder="8-digit code"
+                      value={code}
+                      onChange={(event) =>
+                        setCode(event.target.value.replace(/\D/g, "").slice(0, 8))
+                      }
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          backgroundColor: "#ffffff",
+                        },
+                      }}
+                    />
+
+                    {error && (
+                      <Paper
+                        variant="outlined"
+                        sx={{
+                          backgroundColor: "#fff4f4",
+                          borderColor: "#e6b3b3",
+                          color: "#7a1f1f",
+                          p: 1.5,
+                        }}
+                      >
+                        <Typography>{error}</Typography>
+                      </Paper>
+                    )}
+
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+                      <Button
+                        size="large"
+                        type="submit"
+                        disabled={loading || code.length !== 8}
+                        variant="contained"
+                        sx={{
+                          backgroundColor: "#153f37",
+                          fontWeight: 700,
+                          py: 1.25,
+                          "&:hover": {
+                            backgroundColor: "#1f6156",
+                          },
+                        }}
+                      >
+                        {loading ? "Verifying..." : "Verify code"}
+                      </Button>
+                      <Button type="button" onClick={handleResend} disabled={loading}>
+                        Resend code
+                      </Button>
+                    </Stack>
+                  </Stack>
+                </Box>
+              ) : null}
+
+              {mfaStep === "delivery_failed" ? (
+                <Paper
+                  variant="outlined"
+                  sx={{ backgroundColor: "#fff4f4", borderColor: "#e6b3b3", color: "#7a1f1f", p: 1.5 }}
+                >
+                  <Typography>
+                    {message || "We couldn't send your verification code by email right now."}
+                  </Typography>
+                </Paper>
+              ) : null}
+
+              {!error && message && mfaStep !== "verify" ? (
+                <Typography sx={{ color: "#4a5f58", mt: 2 }}>{message}</Typography>
+              ) : null}
             </Box>
           </Box>
         </Stack>
       </Paper>
     </main>
   );
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "response" in error &&
+    typeof error.response === "object" &&
+    error.response !== null &&
+    "data" in error.response &&
+    typeof error.response.data === "object" &&
+    error.response.data !== null &&
+    "detail" in error.response.data &&
+    typeof error.response.data.detail === "string"
+  ) {
+    return error.response.data.detail;
+  }
+
+  return fallback;
 }
