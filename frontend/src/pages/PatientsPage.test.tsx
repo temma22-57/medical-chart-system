@@ -15,6 +15,7 @@ const doctorUser: CurrentUser = {
   first_name: "Demo",
   last_name: "Doctor",
   email: "doctor@example.com",
+  phone: "",
   roles: ["Doctor"],
 };
 

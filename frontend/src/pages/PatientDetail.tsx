@@ -18,6 +18,7 @@ import {
 import { getPatient } from "../features/patients/patientService";
 import type {
   Allergy,
+  Diagnosis,
   Medication,
   PatientDetail as PatientDetailType,
   Visit,
@@ -57,8 +58,25 @@ const notesClampSx = {
   WebkitLineClamp: 3,
 };
 
+const visitNotesBoxSx = {
+  maxHeight: 120,
+  maxWidth: 420,
+  overflowY: "auto",
+  pr: 1,
+  whiteSpace: "pre-wrap",
+  wordBreak: "break-word",
+};
+
 function displayValue(value: string | number | undefined | null) {
   return value === undefined || value === null || value === "" ? "Not recorded" : value;
+}
+
+function formatTimestamp(value?: string) {
+  if (!value) {
+    return "";
+  }
+
+  return new Date(value).toLocaleString();
 }
 
 function SectionTitle({
@@ -109,16 +127,41 @@ function VisitsCard({ patientId, visits }: { patientId: number; visits: Visit[] 
                   <TableCell>{visit.primary_care_physician}</TableCell>
                   <TableCell>{displayValue(visit.staff_assigned)}</TableCell>
                   <TableCell>
-                    <Box sx={notesClampSx}>{visit.notes}</Box>
+                    {visit.notes.length === 0 ? (
+                      <Typography sx={{ color: "#c4ccbe" }}>No notes recorded.</Typography>
+                    ) : (
+                      <Box sx={visitNotesBoxSx}>
+                        <Stack spacing={1}>
+                          {visit.notes.map((note) => (
+                            <Box key={note.id}>
+                              <Typography variant="caption" sx={{ color: "#c4ccbe" }}>
+                                {note.author_display_name}
+                                {note.updated_at ? ` - ${formatTimestamp(note.updated_at)}` : ""}
+                              </Typography>
+                              <Typography>{note.content}</Typography>
+                            </Box>
+                          ))}
+                        </Stack>
+                      </Box>
+                    )}
                   </TableCell>
                   <TableCell>
-                    <Button
-                      component={RouterLink}
-                      to={`/patients/${patientId}/visits/${visit.id}/edit`}
-                      size="small"
-                    >
-                      Edit
-                    </Button>
+                    <Stack spacing={0.5}>
+                      <Button
+                        component={RouterLink}
+                        to={`/patients/${patientId}/visits/${visit.id}/notes`}
+                        size="small"
+                      >
+                        Notes
+                      </Button>
+                      <Button
+                        component={RouterLink}
+                        to={`/patients/${patientId}/visits/${visit.id}/edit`}
+                        size="small"
+                      >
+                        Edit
+                      </Button>
+                    </Stack>
                   </TableCell>
                 </TableRow>
               ))}
@@ -152,6 +195,7 @@ function MedicationsCard({
                 <TableCell>Name</TableCell>
                 <TableCell>Dosage</TableCell>
                 <TableCell>Frequency</TableCell>
+                <TableCell>Duration</TableCell>
                 <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -161,10 +205,69 @@ function MedicationsCard({
                   <TableCell>{medication.name}</TableCell>
                   <TableCell>{medication.dosage}</TableCell>
                   <TableCell>{medication.frequency}</TableCell>
+                  <TableCell>{displayValue(medication.duration)}</TableCell>
                   <TableCell>
                     <Button
                       component={RouterLink}
                       to={`/patients/${patientId}/medications/${medication.id}/edit`}
+                      size="small"
+                    >
+                      Edit
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function DiagnosesCard({
+  patientId,
+  diagnoses,
+}: {
+  patientId: number;
+  diagnoses: Diagnosis[];
+}) {
+  return (
+    <Card variant="outlined" sx={chartCardSx}>
+      <CardHeader
+        title={<SectionTitle addTo={`/patients/${patientId}/diagnoses/new`} title="Diagnoses" />}
+      />
+      <CardContent>
+        {diagnoses.length === 0 ? (
+          <EmptyState>No diagnoses recorded.</EmptyState>
+        ) : (
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Name</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Date Diagnosed</TableCell>
+                <TableCell>Code</TableCell>
+                <TableCell>Provider</TableCell>
+                <TableCell>Notes</TableCell>
+                <TableCell>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {diagnoses.map((diagnosis) => (
+                <TableRow key={diagnosis.id}>
+                  <TableCell>{diagnosis.name}</TableCell>
+                  <TableCell>{diagnosis.status}</TableCell>
+                  <TableCell>{diagnosis.date_diagnosed}</TableCell>
+                  <TableCell>{displayValue(diagnosis.diagnosis_code)}</TableCell>
+                  <TableCell>{displayValue(diagnosis.provider_name)}</TableCell>
+                  <TableCell>
+                    <Box sx={notesClampSx}>{displayValue(diagnosis.notes)}</Box>
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      component={RouterLink}
+                      to={`/patients/${patientId}/diagnoses/${diagnosis.id}/edit`}
                       size="small"
                     >
                       Edit
@@ -328,9 +431,10 @@ export default function PatientDetail() {
       </Paper>
 
       <Stack spacing={2}>
-        <VisitsCard patientId={patient.id} visits={patient.visits} />
         <MedicationsCard patientId={patient.id} medications={patient.medications} />
+        <DiagnosesCard patientId={patient.id} diagnoses={patient.diagnoses} />
         <AllergiesCard patientId={patient.id} allergies={patient.allergies} />
+        <VisitsCard patientId={patient.id} visits={patient.visits} />
       </Stack>
     </Stack>
   );
