@@ -14,17 +14,26 @@ auth.User
 Patient
   one-to-many Visit
   one-to-many Medication
+  one-to-many Diagnosis
   one-to-many Allergy
 
 Visit
   many-to-one Patient
+  one-to-many VisitNote
   one-to-many Vital
+
+VisitNote
+  many-to-one Visit
+  many-to-one auth.User
 
 Vital
   many-to-one Visit
   indirectly belongs to Patient through Visit
 
 Medication
+  many-to-one Patient
+
+Diagnosis
   many-to-one Patient
 
 Allergy
@@ -38,8 +47,8 @@ Django provides the user, group, and permission tables.
 Important project usage:
 
 - `Admin` group has no patient-domain permissions and is used by custom API permissions for user-management endpoints.
-- `Doctor` group has view/add/change permissions for patients, visits, medications, allergies, and vitals.
-- `Nurse` group has view permissions for patients, visits, medications, allergies, and vitals.
+- `Doctor` group has view/add/change permissions for patients, visits, visit notes, medications, diagnoses, allergies, and vitals.
+- `Nurse` group has view permissions for patients, visits, medications, diagnoses, allergies, and vitals plus view/add/change permissions for their own visit notes.
 - DRF token authentication stores API tokens in the `authtoken_token` table.
 
 ## Patient
@@ -66,6 +75,7 @@ Relationships:
 
 - `Patient.visits` returns related visits.
 - `Patient.medications` returns related medications.
+- `Patient.diagnoses` returns related diagnoses.
 - `Patient.allergies` returns related allergies.
 
 Duplicate rule:
@@ -88,7 +98,6 @@ Fields:
 | `visit_date` | `DateField()` | Required |
 | `primary_care_physician` | `CharField(max_length=150)` | Required text attribution |
 | `staff_assigned` | `CharField(max_length=150, blank=True)` | Optional text attribution |
-| `notes` | `TextField()` | Required |
 | `created_at` | `DateTimeField(auto_now_add=True)` | Created timestamp |
 | `updated_at` | `DateTimeField(auto_now=True)` | Updated timestamp |
 
@@ -102,7 +111,38 @@ Relationships:
 
 - Each visit belongs to exactly one patient.
 - A patient can have many visits.
+- `Visit.note_entries` returns authored notes for that visit.
 - `Visit.vitals` returns vitals recorded for that visit.
+
+## VisitNote
+
+Django model: `patients.models.VisitNote`
+
+Purpose: stores authored visit note content separately from the visit record.
+
+Fields:
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `id` | Auto primary key | Django default primary key |
+| `visit` | `ForeignKey(Visit, related_name="note_entries", on_delete=CASCADE)` | Required |
+| `author` | `ForeignKey(settings.AUTH_USER_MODEL, related_name="visit_notes", on_delete=CASCADE)` | Required |
+| `content` | `TextField()` | Required note text |
+| `created_at` | `DateTimeField(auto_now_add=True)` | Created timestamp |
+| `updated_at` | `DateTimeField(auto_now=True)` | Updated timestamp |
+
+Constraints:
+
+```text
+unique visit + author
+```
+
+Practical effect:
+
+- A user can have one editable note per visit.
+- Notes from all users are visible to users with visit-note view permission.
+- The API allows users to edit only their own visit note.
+- Legacy `Visit.notes` text is migrated into `VisitNote` rows authored by an inactive `legacy_visit_note` user.
 
 ## Vital
 
@@ -157,6 +197,7 @@ Fields:
 | `name` | `CharField(max_length=150)` | Required |
 | `dosage` | `CharField(max_length=100)` | Required |
 | `frequency` | `CharField(max_length=100)` | Required |
+| `duration` | `CharField(max_length=100, blank=True)` | Optional |
 | `created_at` | `DateTimeField(auto_now_add=True)` | Created timestamp |
 | `updated_at` | `DateTimeField(auto_now=True)` | Updated timestamp |
 
@@ -170,6 +211,39 @@ Relationships:
 
 - Each medication belongs to exactly one patient.
 - A patient can have many medications.
+
+## Diagnosis
+
+Django model: `patients.models.Diagnosis`
+
+Purpose: records a patient diagnosis or medical condition.
+
+Fields:
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `id` | Auto primary key | Django default primary key |
+| `patient` | `ForeignKey(Patient, related_name="diagnoses", on_delete=CASCADE)` | Required |
+| `name` | `CharField(max_length=150)` | Required |
+| `status` | `CharField(max_length=20)` | Required; choices are `current`, `chronic`, `remission`, `resolved` |
+| `date_diagnosed` | `DateField()` | Required |
+| `diagnosis_code` | `CharField(max_length=30, blank=True)` | Optional ICD-style code placeholder |
+| `provider_name` | `CharField(max_length=150, blank=True)` | Optional text attribution |
+| `resolution_date` | `DateField(null=True, blank=True)` | Optional |
+| `notes` | `TextField(blank=True)` | Optional |
+| `created_at` | `DateTimeField(auto_now_add=True)` | Created timestamp |
+| `updated_at` | `DateTimeField(auto_now=True)` | Updated timestamp |
+
+API ordering:
+
+```text
+current status first, then -date_diagnosed, then name
+```
+
+Relationships:
+
+- Each diagnosis belongs to exactly one patient.
+- A patient can have many diagnoses.
 
 ## Allergy
 
@@ -205,14 +279,15 @@ Patient-domain foreign keys use `on_delete=models.CASCADE`.
 
 Practical effect:
 
-- Deleting a patient deletes their visits, medications, and allergies.
-- Deleting a visit deletes its vitals.
+- Deleting a patient deletes their visits, medications, diagnoses, and allergies.
+- Deleting a visit deletes its visit notes and vitals.
 
 The current API does not expose delete endpoints, but the database relationship behavior is still part of the model design.
 
 ## Current Schema Limitations
 
 - Doctor and staff attribution on visits are text fields, not foreign keys to user/staff profiles.
+- Diagnosis provider attribution is stored as text, not linked to user accounts.
 - Vitals are visit-level records but are not constrained to one record per visit.
 - There is no audit log table yet.
 - There are no separate treatment/procedure tables yet.

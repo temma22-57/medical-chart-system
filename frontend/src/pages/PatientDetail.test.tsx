@@ -28,6 +28,19 @@ describe("PatientDetail", () => {
           name: "Lisinopril",
           dosage: "10 mg",
           frequency: "Daily",
+          duration: "Ongoing",
+        },
+      ],
+      diagnoses: [
+        {
+          id: 8,
+          patient: 7,
+          name: "Hypertension",
+          status: "current",
+          date_diagnosed: "2026-04-01",
+          diagnosis_code: "I10",
+          provider_name: "Dr. Smith",
+          notes: "Monitor blood pressure.",
         },
       ],
       allergies: [
@@ -45,7 +58,18 @@ describe("PatientDetail", () => {
           visit_date: "2026-04-13",
           primary_care_physician: "Dr. Smith",
           staff_assigned: "Nurse Gomez",
-          notes: "Medication review.",
+          notes: [
+            {
+              id: 10,
+              visit: 5,
+              author: 2,
+              author_username: "doctor",
+              author_display_name: "Dr. Smith",
+              content: "Medication review.",
+              can_edit: false,
+              updated_at: "2026-04-13T17:00:00Z",
+            },
+          ],
           vitals: [],
         },
       ],
@@ -80,7 +104,11 @@ describe("PatientDetail", () => {
     expect(screen.getByText(/primary language/i)).toBeInTheDocument();
     expect(screen.getByText("English")).toBeInTheDocument();
     expect(screen.getByText("122/78")).toBeInTheDocument();
+    expect(screen.getByText("Hypertension")).toBeInTheDocument();
+    expect(screen.getByText("current")).toBeInTheDocument();
+    expect(screen.getByText("I10")).toBeInTheDocument();
     expect(screen.getByText("Lisinopril")).toBeInTheDocument();
+    expect(screen.getByText("Ongoing")).toBeInTheDocument();
     expect(screen.getByText("Penicillin")).toBeInTheDocument();
     expect(screen.getByText("Medication review.")).toBeInTheDocument();
   });

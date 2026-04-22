@@ -9,6 +9,7 @@ import PatientDetail from "./pages/PatientDetail";
 import PatientRelatedRecordFormPage from "./pages/PatientRelatedRecordFormPage";
 import PatientsPage from "./pages/PatientsPage";
 import UserManagementPage from "./pages/UserManagementPage";
+import VisitNotesPage from "./pages/VisitNotesPage";
 import VisitVitalsFormPage from "./pages/VisitVitalsFormPage";
 
 function App() {
@@ -129,6 +130,16 @@ function App() {
           }
         />
         <Route
+          path="/patients/:id/visits/:recordId/notes"
+          element={
+            isAdmin ? (
+              <Navigate to="/admin/users" replace />
+            ) : (
+              <VisitNotesPage currentUser={currentUser!} />
+            )
+          }
+        />
+        <Route
           path="/patients/:id/visits/:recordId/vitals/new"
           element={isAdmin ? <Navigate to="/admin/users" replace /> : <VisitVitalsFormPage />}
         />
@@ -149,6 +160,26 @@ function App() {
               <Navigate to="/admin/users" replace />
             ) : (
               <PatientRelatedRecordFormPage recordType="medications" mode="edit" />
+            )
+          }
+        />
+        <Route
+          path="/patients/:id/diagnoses/new"
+          element={
+            isAdmin ? (
+              <Navigate to="/admin/users" replace />
+            ) : (
+              <PatientRelatedRecordFormPage recordType="diagnoses" mode="add" />
+            )
+          }
+        />
+        <Route
+          path="/patients/:id/diagnoses/:recordId/edit"
+          element={
+            isAdmin ? (
+              <Navigate to="/admin/users" replace />
+            ) : (
+              <PatientRelatedRecordFormPage recordType="diagnoses" mode="edit" />
             )
           }
         />

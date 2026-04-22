@@ -21,7 +21,7 @@ The project uses Django users, groups, and model permissions.
 - Unauthenticated users cannot access patient medical-record APIs.
 - `Admin` users can manage user accounts but cannot access patient medical-record APIs.
 - `Doctor` users can view, create, and update patient-domain records covered by the current permission setup.
-- `Nurse` users can view patient-domain records but do not have add/change permissions.
+- `Nurse` users can view patient-domain records and can add/change their own visit notes, but do not have add/change permissions for other restricted patient-domain records.
 - Login is public.
 - Logout and current-user lookup require authentication.
 
@@ -317,7 +317,7 @@ Notes:
 
 ### GET `/api/patients/{id}/`
 
-Retrieves a patient detail record with related medications, allergies, visits, visit vitals, and latest vitals.
+Retrieves a patient detail record with related medications, diagnoses, allergies, visits, visit vitals, and latest vitals.
 
 Auth required: yes
 
@@ -343,6 +343,22 @@ Response:
       "name": "Lisinopril",
       "dosage": "10 mg",
       "frequency": "Daily",
+      "duration": "Ongoing",
+      "created_at": "2026-04-15T04:18:00Z",
+      "updated_at": "2026-04-15T04:18:00Z"
+    }
+  ],
+  "diagnoses": [
+    {
+      "id": 1,
+      "patient": 1,
+      "name": "Hypertension",
+      "status": "current",
+      "date_diagnosed": "2026-03-15",
+      "diagnosis_code": "I10",
+      "provider_name": "Dr. Morgan Patel",
+      "resolution_date": null,
+      "notes": "Monitor blood pressure and medication response.",
       "created_at": "2026-04-15T04:18:00Z",
       "updated_at": "2026-04-15T04:18:00Z"
     }
@@ -364,7 +380,19 @@ Response:
       "visit_date": "2026-04-10",
       "primary_care_physician": "Dr. Morgan Patel",
       "staff_assigned": "Nurse Lee",
-      "notes": "Blood pressure check and medication review.",
+      "notes": [
+        {
+          "id": 1,
+          "visit": 1,
+          "author": 2,
+          "author_username": "doctor",
+          "author_display_name": "doctor",
+          "content": "Blood pressure check and medication review.",
+          "can_edit": false,
+          "created_at": "2026-04-15T04:18:00Z",
+          "updated_at": "2026-04-15T04:18:00Z"
+        }
+      ],
       "vitals": [
         {
           "id": 1,
@@ -455,7 +483,19 @@ Response:
     "visit_date": "2026-04-10",
     "primary_care_physician": "Dr. Morgan Patel",
     "staff_assigned": "Nurse Lee",
-    "notes": "Blood pressure check and medication review.",
+    "notes": [
+      {
+        "id": 1,
+        "visit": 1,
+        "author": 2,
+        "author_username": "doctor",
+        "author_display_name": "doctor",
+        "content": "Blood pressure check and medication review.",
+        "can_edit": true,
+        "created_at": "2026-04-15T04:18:00Z",
+        "updated_at": "2026-04-15T04:18:00Z"
+      }
+    ],
     "vitals": [],
     "created_at": "2026-04-15T04:18:00Z",
     "updated_at": "2026-04-15T04:18:00Z"
@@ -477,12 +517,15 @@ Request:
 {
   "visit_date": "2026-04-10",
   "primary_care_physician": "Dr. Morgan Patel",
-  "staff_assigned": "Nurse Lee",
-  "notes": "Blood pressure check and medication review."
+  "staff_assigned": "Nurse Lee"
 }
 ```
 
 Response: visit object.
+
+Notes:
+
+- Visit note text is stored through the visit-note endpoints, not on the visit record itself.
 
 ### GET `/api/visits/{id}/`
 
@@ -506,11 +549,104 @@ Patch request:
 
 ```json
 {
-  "notes": "Updated visit notes."
+  "staff_assigned": "Nurse Lee"
 }
 ```
 
 Response: updated visit object.
+
+## Visit Note Endpoints
+
+Visit notes are authored records linked to both a visit and a user account. The current implementation allows one note per user per visit.
+
+### GET `/api/visits/{visit_id}/notes/`
+
+Lists notes for a visit.
+
+Auth required: yes
+
+Permission required: `patients.view_visitnote`
+
+Response:
+
+```json
+[
+  {
+    "id": 1,
+    "visit": 1,
+    "author": 2,
+    "author_username": "doctor",
+    "author_display_name": "doctor",
+    "content": "Blood pressure check and medication review.",
+    "can_edit": true,
+    "created_at": "2026-04-15T04:18:00Z",
+    "updated_at": "2026-04-15T04:18:00Z"
+  },
+  {
+    "id": 2,
+    "visit": 1,
+    "author": 3,
+    "author_username": "nurse",
+    "author_display_name": "nurse",
+    "content": "Reviewed home blood pressure log with patient.",
+    "can_edit": false,
+    "created_at": "2026-04-15T04:20:00Z",
+    "updated_at": "2026-04-15T04:20:00Z"
+  }
+]
+```
+
+### POST `/api/visits/{visit_id}/notes/`
+
+Creates the authenticated user's note for a visit.
+
+Auth required: yes
+
+Permission required: `patients.add_visitnote`
+
+Request:
+
+```json
+{
+  "content": "Patient reports taking medication as directed."
+}
+```
+
+Response: visit note object.
+
+Notes:
+
+- If the authenticated user already has a note for the visit, the endpoint returns `400 Bad Request`.
+
+### GET `/api/visit-notes/{id}/`
+
+Retrieves one visit note.
+
+Auth required: yes
+
+Permission required: `patients.view_visitnote`
+
+Response: visit note object.
+
+### PUT/PATCH `/api/visit-notes/{id}/`
+
+Updates one visit note.
+
+Auth required: yes
+
+Permission required: `patients.change_visitnote`
+
+Author rule: users can update only their own note. Updating another user's note returns `403 Forbidden`.
+
+Patch request:
+
+```json
+{
+  "content": "Updated visit note text."
+}
+```
+
+Response: updated visit note object.
 
 ## Medication Endpoints
 
@@ -532,6 +668,7 @@ Response:
     "name": "Lisinopril",
     "dosage": "10 mg",
     "frequency": "Daily",
+    "duration": "Ongoing",
     "created_at": "2026-04-15T04:18:00Z",
     "updated_at": "2026-04-15T04:18:00Z"
   }
@@ -552,7 +689,8 @@ Request:
 {
   "name": "Lisinopril",
   "dosage": "10 mg",
-  "frequency": "Daily"
+  "frequency": "Daily",
+  "duration": "Ongoing"
 }
 ```
 
@@ -580,11 +718,97 @@ Patch request:
 
 ```json
 {
-  "frequency": "Twice daily"
+  "frequency": "Twice daily",
+  "duration": "30 days"
 }
 ```
 
 Response: updated medication object.
+
+## Diagnosis Endpoints
+
+### GET `/api/patients/{patient_id}/diagnoses/`
+
+Lists diagnoses for a patient.
+
+Auth required: yes
+
+Permission required: `patients.view_diagnosis`
+
+Ordering: current diagnoses first, then newest diagnosis date first.
+
+Response:
+
+```json
+[
+  {
+    "id": 1,
+    "patient": 1,
+    "name": "Hypertension",
+    "status": "current",
+    "date_diagnosed": "2026-03-15",
+    "diagnosis_code": "I10",
+    "provider_name": "Dr. Morgan Patel",
+    "resolution_date": null,
+    "notes": "Monitor blood pressure and medication response.",
+    "created_at": "2026-04-15T04:18:00Z",
+    "updated_at": "2026-04-15T04:18:00Z"
+  }
+]
+```
+
+### POST `/api/patients/{patient_id}/diagnoses/`
+
+Creates a diagnosis for a patient.
+
+Auth required: yes
+
+Permission required: `patients.add_diagnosis`
+
+Request:
+
+```json
+{
+  "name": "Hypertension",
+  "status": "current",
+  "date_diagnosed": "2026-03-15",
+  "diagnosis_code": "I10",
+  "provider_name": "Dr. Morgan Patel",
+  "resolution_date": null,
+  "notes": "Monitor blood pressure and medication response."
+}
+```
+
+Response: diagnosis object.
+
+### GET `/api/diagnoses/{id}/`
+
+Retrieves one diagnosis.
+
+Auth required: yes
+
+Permission required: `patients.view_diagnosis`
+
+Response: diagnosis object.
+
+### PUT/PATCH `/api/diagnoses/{id}/`
+
+Updates one diagnosis.
+
+Auth required: yes
+
+Permission required: `patients.change_diagnosis`
+
+Patch request:
+
+```json
+{
+  "status": "resolved",
+  "resolution_date": "2026-04-20"
+}
+```
+
+Response: updated diagnosis object.
 
 ## Allergy Endpoints
 
