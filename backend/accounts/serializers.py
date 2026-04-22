@@ -4,7 +4,7 @@ from django.contrib.auth.models import Group
 from rest_framework import serializers
 
 from .mfa import EMAIL_METHOD, get_profile, normalize_phone
-from .models import MfaFactorChangeAudit
+from .models import AccountProfile, MfaFactorChangeAudit
 
 
 ROLE_NAMES = ["Admin", "Doctor", "Nurse"]
@@ -195,3 +195,20 @@ class MfaVerificationSerializer(serializers.Serializer):
 
 class MfaResendSerializer(serializers.Serializer):
     challenge_id = serializers.UUIDField()
+
+
+class PatientCardOrderSerializer(serializers.Serializer):
+    card_order = serializers.ListField(
+        child=serializers.ChoiceField(choices=AccountProfile.DEFAULT_PATIENT_CARD_ORDER),
+        allow_empty=False,
+    )
+
+    def validate_card_order(self, value):
+        default_order = AccountProfile.DEFAULT_PATIENT_CARD_ORDER
+
+        if sorted(value) != sorted(default_order):
+            raise serializers.ValidationError(
+                "Card order must include medications, diagnoses, allergies, and visits exactly once."
+            )
+
+        return value

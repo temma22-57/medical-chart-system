@@ -9,6 +9,7 @@ from .views import (
     MfaResendView,
     MfaVerificationView,
     MeView,
+    PatientCardOrderPreferenceView,
 )
 
 
@@ -18,6 +19,11 @@ urlpatterns = [
     path("mfa/verify/", MfaVerificationView.as_view(), name="auth-mfa-verify"),
     path("logout/", LogoutView.as_view(), name="auth-logout"),
     path("me/", MeView.as_view(), name="auth-me"),
+    path(
+        "preferences/patient-card-order/",
+        PatientCardOrderPreferenceView.as_view(),
+        name="patient-card-order-preference",
+    ),
     path("users/", ManagedUserListCreateView.as_view(), name="managed-users"),
     path("users/<int:pk>/", ManagedUserDetailView.as_view(), name="managed-user-detail"),
     path(

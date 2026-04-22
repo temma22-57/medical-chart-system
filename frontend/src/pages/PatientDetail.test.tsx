@@ -1,8 +1,14 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { getPatientCardOrderPreference } from "../features/auth/authService";
 import { getPatient } from "../features/patients/patientService";
 import PatientDetail from "./PatientDetail";
+
+vi.mock("../features/auth/authService", () => ({
+  getPatientCardOrderPreference: vi.fn(),
+  updatePatientCardOrderPreference: vi.fn(),
+}));
 
 vi.mock("../features/patients/patientService", () => ({
   getPatient: vi.fn(),
@@ -11,6 +17,10 @@ vi.mock("../features/patients/patientService", () => ({
 describe("PatientDetail", () => {
   beforeEach(() => {
     vi.mocked(getPatient).mockReset();
+    vi.mocked(getPatientCardOrderPreference).mockReset();
+    vi.mocked(getPatientCardOrderPreference).mockResolvedValue({
+      card_order: ["medications", "diagnoses", "allergies", "visits"],
+    });
   });
 
   it("renders patient demographics, latest vitals, and related record sections", async () => {
@@ -111,6 +121,46 @@ describe("PatientDetail", () => {
     expect(screen.getByText("Ongoing")).toBeInTheDocument();
     expect(screen.getByText("Penicillin")).toBeInTheDocument();
     expect(screen.getByText("Medication review.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /set table order/i })).toBeInTheDocument();
+  });
+
+  it("uses the saved user card order when rendering patient tables", async () => {
+    vi.mocked(getPatientCardOrderPreference).mockResolvedValue({
+      card_order: ["visits", "allergies", "diagnoses", "medications"],
+    });
+    vi.mocked(getPatient).mockResolvedValue({
+      id: 7,
+      first_name: "Avery",
+      last_name: "Stone",
+      date_of_birth: "1990-04-12",
+      phone: "555-0100",
+      primary_language: "English",
+      medications: [],
+      diagnoses: [],
+      allergies: [],
+      visits: [],
+      latest_vitals: null,
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/patients/7"]}>
+        <Routes>
+          <Route path="/patients/:id" element={<PatientDetail />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: /avery stone/i })).toBeInTheDocument();
+    });
+
+    const visitsHeading = screen.getByRole("heading", { name: /visits/i });
+    const medicationsHeading = screen.getByRole("heading", { name: /medications/i });
+
+    expect(
+      visitsHeading.compareDocumentPosition(medicationsHeading) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it("renders an error state when patient details cannot load", async () => {

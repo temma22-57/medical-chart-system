@@ -105,6 +105,47 @@ Response:
 }
 ```
 
+### GET `/api/auth/preferences/patient-card-order/`
+
+Returns the current user's saved patient detail table order. If the user has no saved preference, the backend returns the default order.
+
+Auth required: yes
+
+Response:
+
+```json
+{
+  "card_order": ["medications", "diagnoses", "allergies", "visits"]
+}
+```
+
+### PATCH `/api/auth/preferences/patient-card-order/`
+
+Updates the current user's patient detail table order.
+
+Auth required: yes
+
+Request:
+
+```json
+{
+  "card_order": ["visits", "medications", "allergies", "diagnoses"]
+}
+```
+
+Validation:
+
+- The order must include `medications`, `diagnoses`, `allergies`, and `visits`.
+- Each value must appear exactly once.
+
+Response:
+
+```json
+{
+  "card_order": ["visits", "medications", "allergies", "diagnoses"]
+}
+```
+
 ## Admin User-Management Endpoints
 
 These endpoints are available only to users in the `Admin` group.

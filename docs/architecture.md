@@ -74,6 +74,7 @@ The React frontend owns:
 - Authenticated layout with navigation and patient search.
 - Patient list and patient create page.
 - Patient detail dashboard with demographics, latest vitals, visits, authored visit notes, medications, diagnoses, and allergies.
+- User-specific patient detail table ordering for medications, diagnoses, allergies, and visits.
 - Add/edit flows for visits, visit notes, medications, diagnoses, allergies, and adding vitals to visits.
 - API calls through an axios service layer.
 
@@ -140,6 +141,24 @@ PatientDetail page
   -> PatientDetailSerializer
   -> PostgreSQL Patient + related records
   -> JSON response with medications, diagnoses, allergies, visits, visit notes, latest_vitals
+```
+
+Patient detail table-order preference flow:
+
+```text
+PatientDetail page
+  -> GET /api/auth/preferences/patient-card-order/
+  -> AccountProfile.patient_card_order for the current user
+  -> Render Medications, Diagnoses, Allergies, and Visits cards in that order
+```
+
+When a user changes the order:
+
+```text
+Set Table Order dialog
+  -> PATCH /api/auth/preferences/patient-card-order/
+  -> Validate all four card keys are present exactly once
+  -> Save AccountProfile.patient_card_order
 ```
 
 ## Database Role

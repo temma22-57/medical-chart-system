@@ -5,14 +5,23 @@ from django.db import models
 
 
 class AccountProfile(models.Model):
+    DEFAULT_PATIENT_CARD_ORDER = ["medications", "diagnoses", "allergies", "visits"]
+
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="account_profile",
     )
     phone = models.CharField(max_length=32, blank=True)
+    patient_card_order = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def get_patient_card_order(self):
+        if sorted(self.patient_card_order) == sorted(self.DEFAULT_PATIENT_CARD_ORDER):
+            return self.patient_card_order
+
+        return self.DEFAULT_PATIENT_CARD_ORDER.copy()
 
     def __str__(self):
         return f"Profile for {self.user.username}"

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { ReactElement } from "react";
 import { Link as RouterLink, useParams } from "react-router-dom";
 import {
   Box,
@@ -6,6 +7,10 @@ import {
   Card,
   CardContent,
   CardHeader,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Paper,
   Stack,
   Table,
@@ -15,6 +20,11 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
+import {
+  getPatientCardOrderPreference,
+  updatePatientCardOrderPreference,
+} from "../features/auth/authService";
+import type { PatientCardKey } from "../features/auth/authService";
 import { getPatient } from "../features/patients/patientService";
 import type {
   Allergy,
@@ -65,6 +75,15 @@ const visitNotesBoxSx = {
   pr: 1,
   whiteSpace: "pre-wrap",
   wordBreak: "break-word",
+};
+
+const defaultCardOrder: PatientCardKey[] = ["medications", "diagnoses", "allergies", "visits"];
+
+const cardLabels: Record<PatientCardKey, string> = {
+  medications: "Medications",
+  diagnoses: "Diagnoses",
+  allergies: "Allergies",
+  visits: "Visits",
 };
 
 function displayValue(value: string | number | undefined | null) {
@@ -329,8 +348,13 @@ export default function PatientDetail() {
   const { id } = useParams();
   const patientId = Number(id);
   const [patient, setPatient] = useState<PatientDetailType | null>(null);
+  const [cardOrder, setCardOrder] = useState<PatientCardKey[]>(defaultCardOrder);
+  const [draftCardOrder, setDraftCardOrder] = useState<PatientCardKey[]>(defaultCardOrder);
+  const [orderDialogOpen, setOrderDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [savingOrder, setSavingOrder] = useState(false);
   const [error, setError] = useState("");
+  const [preferenceError, setPreferenceError] = useState("");
 
   useEffect(() => {
     const loadPatient = async () => {
@@ -342,10 +366,24 @@ export default function PatientDetail() {
 
       setLoading(true);
       setError("");
+      setPreferenceError("");
 
       try {
-        const data = await getPatient(patientId);
+        const [data, preference] = await Promise.all([
+          getPatient(patientId),
+          getPatientCardOrderPreference().catch(() => null),
+        ]);
         setPatient(data);
+        if (preference && isValidCardOrder(preference.card_order)) {
+          setCardOrder(preference.card_order);
+          setDraftCardOrder(preference.card_order);
+        } else {
+          setCardOrder(defaultCardOrder);
+          setDraftCardOrder(defaultCardOrder);
+        }
+        if (!preference) {
+          setPreferenceError("Using the default table order because saved preferences could not be loaded.");
+        }
       } catch {
         setError("Unable to load patient details.");
         setPatient(null);
@@ -370,12 +408,63 @@ export default function PatientDetail() {
   }
 
   const latestVitals = patient.latest_vitals;
+  const orderedCards = buildOrderedCards(cardOrder, patient);
+
+  const moveDraftCard = (index: number, direction: -1 | 1) => {
+    const nextIndex = index + direction;
+
+    if (nextIndex < 0 || nextIndex >= draftCardOrder.length) {
+      return;
+    }
+
+    const nextOrder = [...draftCardOrder];
+    [nextOrder[index], nextOrder[nextIndex]] = [nextOrder[nextIndex], nextOrder[index]];
+    setDraftCardOrder(nextOrder);
+  };
+
+  const openOrderDialog = () => {
+    setDraftCardOrder(cardOrder);
+    setOrderDialogOpen(true);
+  };
+
+  const saveCardOrder = async () => {
+    setSavingOrder(true);
+    setPreferenceError("");
+
+    try {
+      const preference = await updatePatientCardOrderPreference(draftCardOrder);
+      const nextOrder = isValidCardOrder(preference.card_order)
+        ? preference.card_order
+        : defaultCardOrder;
+      setCardOrder(nextOrder);
+      setDraftCardOrder(nextOrder);
+      setOrderDialogOpen(false);
+    } catch {
+      setPreferenceError("Unable to save table order. Please try again.");
+    } finally {
+      setSavingOrder(false);
+    }
+  };
 
   return (
     <Stack spacing={3} sx={{ textAlign: "left" }}>
-      <Button component={RouterLink} to="/patients" size="small">
-        Back to patients
-      </Button>
+      <Stack direction="row" spacing={1.5} sx={{ flexWrap: "wrap" }}>
+        <Button component={RouterLink} to="/patients" size="small">
+          Back to patients
+        </Button>
+        <Button size="small" variant="outlined" onClick={openOrderDialog}>
+          Set Table Order
+        </Button>
+      </Stack>
+
+      {preferenceError && (
+        <Paper
+          variant="outlined"
+          sx={{ backgroundColor: "#fff7e6", borderColor: "#f2d28b", color: "#6b4b00", p: 1.5 }}
+        >
+          <Typography>{preferenceError}</Typography>
+        </Paper>
+      )}
 
       <Paper
         variant="outlined"
@@ -431,11 +520,80 @@ export default function PatientDetail() {
       </Paper>
 
       <Stack spacing={2}>
-        <MedicationsCard patientId={patient.id} medications={patient.medications} />
-        <DiagnosesCard patientId={patient.id} diagnoses={patient.diagnoses} />
-        <AllergiesCard patientId={patient.id} allergies={patient.allergies} />
-        <VisitsCard patientId={patient.id} visits={patient.visits} />
+        {orderedCards.map(({ key, element }) => (
+          <Box key={key}>{element}</Box>
+        ))}
       </Stack>
+
+      <Dialog open={orderDialogOpen} onClose={() => setOrderDialogOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>Set Table Order</DialogTitle>
+        <DialogContent>
+          <Stack spacing={1.5} sx={{ mt: 1 }}>
+            <Typography sx={{ color: "#4a5f58" }}>
+              Move tables up or down. This order applies to every patient chart you open.
+            </Typography>
+            {draftCardOrder.map((cardKey, index) => (
+              <Paper
+                key={cardKey}
+                variant="outlined"
+                sx={{
+                  alignItems: "center",
+                  display: "flex",
+                  gap: 1.5,
+                  justifyContent: "space-between",
+                  p: 1.5,
+                }}
+              >
+                <Typography sx={{ fontWeight: 700 }}>
+                  {index + 1}. {cardLabels[cardKey]}
+                </Typography>
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    disabled={index === 0}
+                    onClick={() => moveDraftCard(index, -1)}
+                  >
+                    Up
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    disabled={index === draftCardOrder.length - 1}
+                    onClick={() => moveDraftCard(index, 1)}
+                  >
+                    Down
+                  </Button>
+                </Stack>
+              </Paper>
+            ))}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOrderDialogOpen(false)} disabled={savingOrder}>
+            Cancel
+          </Button>
+          <Button onClick={saveCardOrder} disabled={savingOrder} variant="contained">
+            {savingOrder ? "Saving..." : "Save Order"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
+}
+
+function isValidCardOrder(order: PatientCardKey[]): boolean {
+  return order.length === defaultCardOrder.length && defaultCardOrder.every((key) => order.includes(key));
+}
+
+function buildOrderedCards(order: PatientCardKey[], patient: PatientDetailType) {
+  const cardMap: Record<PatientCardKey, ReactElement> = {
+    medications: <MedicationsCard patientId={patient.id} medications={patient.medications} />,
+    diagnoses: <DiagnosesCard patientId={patient.id} diagnoses={patient.diagnoses} />,
+    allergies: <AllergiesCard patientId={patient.id} allergies={patient.allergies} />,
+    visits: <VisitsCard patientId={patient.id} visits={patient.visits} />,
+  };
+
+  const safeOrder = isValidCardOrder(order) ? order : defaultCardOrder;
+  return safeOrder.map((key) => ({ key, element: cardMap[key] }));
 }

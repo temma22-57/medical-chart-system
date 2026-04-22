@@ -10,6 +10,7 @@ from django.contrib.auth import get_user_model
 from .mfa import (
     MfaError,
     get_available_methods,
+    get_profile,
     resend_code,
     start_login_mfa,
     verify_code,
@@ -20,6 +21,7 @@ from .serializers import (
     ManagedUserWriteSerializer,
     MfaResendSerializer,
     MfaVerificationSerializer,
+    PatientCardOrderSerializer,
     PasswordResetSerializer,
     UserSerializer,
 )
@@ -126,6 +128,22 @@ class MeView(APIView):
 
     def get(self, request):
         return Response(UserSerializer(request.user).data)
+
+
+class PatientCardOrderPreferenceView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        profile = get_profile(request.user)
+        return Response({"card_order": profile.get_patient_card_order()})
+
+    def patch(self, request):
+        profile = get_profile(request.user)
+        serializer = PatientCardOrderSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        profile.patient_card_order = serializer.validated_data["card_order"]
+        profile.save(update_fields=["patient_card_order", "updated_at"])
+        return Response({"card_order": profile.get_patient_card_order()})
 
 
 class ManagedUserListCreateView(generics.ListCreateAPIView):

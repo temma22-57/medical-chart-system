@@ -8,6 +8,7 @@ from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
+from accounts.mfa import get_profile
 from accounts.models import MfaLoginChallenge
 from patients.models import Allergy, Medication, Patient, Visit, Vital
 
@@ -117,6 +118,52 @@ class AuthApiTests(APITestCase):
         response = self.client.get(reverse("auth-me"))
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_patient_card_order_preference_is_user_specific_and_validated(self):
+        doctor = get_user_model().objects.create_user(
+            username="doctor",
+            password="doctorpass",
+        )
+        nurse = get_user_model().objects.create_user(
+            username="nurse",
+            password="nursepass",
+        )
+
+        self.client.force_authenticate(user=doctor)
+        default_response = self.client.get(reverse("patient-card-order-preference"))
+
+        self.assertEqual(default_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            default_response.data["card_order"],
+            ["medications", "diagnoses", "allergies", "visits"],
+        )
+
+        custom_order = ["visits", "medications", "allergies", "diagnoses"]
+        update_response = self.client.patch(
+            reverse("patient-card-order-preference"),
+            {"card_order": custom_order},
+            format="json",
+        )
+
+        self.assertEqual(update_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(update_response.data["card_order"], custom_order)
+        self.assertEqual(get_profile(doctor).patient_card_order, custom_order)
+
+        invalid_response = self.client.patch(
+            reverse("patient-card-order-preference"),
+            {"card_order": ["visits", "visits", "allergies", "diagnoses"]},
+            format="json",
+        )
+
+        self.assertEqual(invalid_response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        self.client.force_authenticate(user=nurse)
+        nurse_response = self.client.get(reverse("patient-card-order-preference"))
+
+        self.assertEqual(
+            nurse_response.data["card_order"],
+            ["medications", "diagnoses", "allergies", "visits"],
+        )
 
 
 class AdminUserManagementApiTests(APITestCase):

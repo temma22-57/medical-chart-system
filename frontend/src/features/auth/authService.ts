@@ -48,6 +48,12 @@ export interface ManagedUserPayload {
   role: "Admin" | "Doctor" | "Nurse";
 }
 
+export type PatientCardKey = "medications" | "diagnoses" | "allergies" | "visits";
+
+export interface PatientCardOrderPreference {
+  card_order: PatientCardKey[];
+}
+
 export const login = async (
   username: string,
   password: string,
@@ -90,6 +96,21 @@ export const logout = async (): Promise<void> => {
 
 export const getCurrentUser = async (): Promise<CurrentUser> => {
   const res = await api.get("/auth/me/");
+  return res.data;
+};
+
+export const getPatientCardOrderPreference =
+  async (): Promise<PatientCardOrderPreference> => {
+    const res = await api.get("/auth/preferences/patient-card-order/");
+    return res.data;
+  };
+
+export const updatePatientCardOrderPreference = async (
+  cardOrder: PatientCardKey[],
+): Promise<PatientCardOrderPreference> => {
+  const res = await api.patch("/auth/preferences/patient-card-order/", {
+    card_order: cardOrder,
+  });
   return res.data;
 };
 

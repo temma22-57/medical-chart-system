@@ -10,6 +10,7 @@ This document describes the current schema implemented in `backend/patients/mode
 auth.User
   many-to-many auth.Group
   many-to-many auth.Permission through groups
+  one-to-one AccountProfile
 
 Patient
   one-to-many Visit
@@ -42,7 +43,7 @@ Allergy
 
 ## Auth Tables
 
-Django provides the user, group, and permission tables.
+Django provides the user, group, and permission tables. The `accounts` app also stores account-specific profile and MFA tables.
 
 Important project usage:
 
@@ -50,6 +51,38 @@ Important project usage:
 - `Doctor` group has view/add/change permissions for patients, visits, visit notes, medications, diagnoses, allergies, and vitals.
 - `Nurse` group has view permissions for patients, visits, medications, diagnoses, allergies, and vitals plus view/add/change permissions for their own visit notes.
 - DRF token authentication stores API tokens in the `authtoken_token` table.
+
+## AccountProfile
+
+Django model: `accounts.models.AccountProfile`
+
+Purpose: stores per-user application preferences and profile fields that are not part of Django's built-in user table.
+
+Fields:
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `id` | Auto primary key | Django default primary key |
+| `user` | `OneToOneField(settings.AUTH_USER_MODEL, related_name="account_profile", on_delete=CASCADE)` | Required |
+| `phone` | `CharField(max_length=32, blank=True)` | Optional user contact field |
+| `patient_card_order` | `JSONField(default=list, blank=True)` | User-specific patient detail table order |
+| `created_at` | `DateTimeField(auto_now_add=True)` | Created timestamp |
+| `updated_at` | `DateTimeField(auto_now=True)` | Updated timestamp |
+
+Patient card order values:
+
+```text
+medications
+diagnoses
+allergies
+visits
+```
+
+If the stored preference is missing or invalid, the backend returns the default order:
+
+```text
+medications, diagnoses, allergies, visits
+```
 
 ## Patient
 
