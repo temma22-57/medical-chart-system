@@ -1,6 +1,20 @@
 from django.db.models import Case, IntegerField, Value, When
 from rest_framework import serializers
 from .models import Allergy, Diagnosis, DiagnosisNote, Medication, Patient, Visit, VisitNote, Vital
+from .permissions import can_delete_recent_own_record
+
+
+class RecordPolicyModelSerializer(serializers.ModelSerializer):
+    created_by = serializers.IntegerField(source="created_by_id", read_only=True)
+    created_by_username = serializers.SerializerMethodField()
+    can_delete = serializers.SerializerMethodField()
+
+    def get_created_by_username(self, obj):
+        return obj.created_by.username if obj.created_by_id else ""
+
+    def get_can_delete(self, obj):
+        request = self.context.get("request")
+        return bool(request and can_delete_recent_own_record(request.user, obj))
 
 
 def order_diagnoses(queryset):
@@ -122,7 +136,7 @@ class DiagnosisNoteSerializer(serializers.ModelSerializer):
         ]
 
 
-class VisitSerializer(serializers.ModelSerializer):
+class VisitSerializer(RecordPolicyModelSerializer):
     vitals = VitalSerializer(many=True, read_only=True)
     notes = VisitNoteSerializer(source="note_entries", many=True, read_only=True)
 
@@ -131,35 +145,41 @@ class VisitSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "patient",
+            "created_by",
+            "created_by_username",
             "visit_date",
             "primary_care_physician",
             "staff_assigned",
             "notes",
             "vitals",
+            "can_delete",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "patient", "created_at", "updated_at"]
+        read_only_fields = ["id", "patient", "created_by", "created_by_username", "can_delete", "created_at", "updated_at"]
 
 
-class MedicationSerializer(serializers.ModelSerializer):
+class MedicationSerializer(RecordPolicyModelSerializer):
     class Meta:
         model = Medication
         fields = [
             "id",
             "patient",
+            "created_by",
+            "created_by_username",
             "name",
             "dosage",
             "frequency",
             "duration",
             "is_active",
+            "can_delete",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "patient", "created_at", "updated_at"]
+        read_only_fields = ["id", "patient", "created_by", "created_by_username", "can_delete", "created_at", "updated_at"]
 
 
-class DiagnosisSerializer(serializers.ModelSerializer):
+class DiagnosisSerializer(RecordPolicyModelSerializer):
     notes = DiagnosisNoteSerializer(source="note_entries", many=True, read_only=True)
 
     class Meta:
@@ -167,6 +187,8 @@ class DiagnosisSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "patient",
+            "created_by",
+            "created_by_username",
             "name",
             "status",
             "date_diagnosed",
@@ -174,24 +196,28 @@ class DiagnosisSerializer(serializers.ModelSerializer):
             "provider_name",
             "resolution_date",
             "notes",
+            "can_delete",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "patient", "created_at", "updated_at"]
+        read_only_fields = ["id", "patient", "created_by", "created_by_username", "can_delete", "created_at", "updated_at"]
 
 
-class AllergySerializer(serializers.ModelSerializer):
+class AllergySerializer(RecordPolicyModelSerializer):
     class Meta:
         model = Allergy
         fields = [
             "id",
             "patient",
+            "created_by",
+            "created_by_username",
             "substance",
             "reaction",
+            "can_delete",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "patient", "created_at", "updated_at"]
+        read_only_fields = ["id", "patient", "created_by", "created_by_username", "can_delete", "created_at", "updated_at"]
 
 
 class PatientSerializer(serializers.ModelSerializer):

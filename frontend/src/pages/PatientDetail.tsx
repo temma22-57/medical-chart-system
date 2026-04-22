@@ -11,6 +11,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  MenuItem,
   Paper,
   Stack,
   Table,
@@ -18,6 +19,7 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  TextField,
   Typography,
 } from "@mui/material";
 import {
@@ -25,7 +27,15 @@ import {
   updatePatientCardOrderPreference,
 } from "../features/auth/authService";
 import type { PatientCardKey } from "../features/auth/authService";
-import { getPatient } from "../features/patients/patientService";
+import {
+  deleteAllergy,
+  deleteDiagnosis,
+  deleteMedication,
+  deleteVisit,
+  getPatient,
+  updateDiagnosis,
+  updateMedication,
+} from "../features/patients/patientService";
 import type {
   Allergy,
   Diagnosis,
@@ -78,6 +88,19 @@ const visitNotesBoxSx = {
   wordBreak: "break-word",
 };
 
+const statusSelectSx = {
+  minWidth: 120,
+  "& .MuiInputBase-input": {
+    color: "#f4f7f1",
+  },
+  "& .MuiOutlinedInput-notchedOutline": {
+    borderColor: "#5d715f",
+  },
+  "& .MuiSelect-icon": {
+    color: "#f4f7f1",
+  },
+};
+
 const defaultCardOrder: PatientCardKey[] = ["medications", "diagnoses", "allergies", "visits"];
 
 const cardLabels: Record<PatientCardKey, string> = {
@@ -126,7 +149,33 @@ function noteAuthorLabel(note: DiagnosisNote) {
   return note.author_display_name || note.author_username;
 }
 
-function VisitsCard({ patientId, visits }: { patientId: number; visits: Visit[] }) {
+function DeleteAction({
+  canDelete,
+  onDelete,
+}: {
+  canDelete: boolean;
+  onDelete: () => void;
+}) {
+  if (!canDelete) {
+    return null;
+  }
+
+  return (
+    <Button color="error" size="small" onClick={onDelete}>
+      Delete
+    </Button>
+  );
+}
+
+function VisitsCard({
+  patientId,
+  visits,
+  onDelete,
+}: {
+  patientId: number;
+  visits: Visit[];
+  onDelete: (visit: Visit) => void;
+}) {
   return (
     <Card variant="outlined" sx={chartCardSx}>
       <CardHeader title={<SectionTitle addTo={`/patients/${patientId}/visits/new`} title="Visits" />} />
@@ -178,13 +227,10 @@ function VisitsCard({ patientId, visits }: { patientId: number; visits: Visit[] 
                       >
                         Notes
                       </Button>
-                      <Button
-                        component={RouterLink}
-                        to={`/patients/${patientId}/visits/${visit.id}/edit`}
-                        size="small"
-                      >
-                        Edit
-                      </Button>
+                      <DeleteAction
+                        canDelete={visit.can_delete}
+                        onDelete={() => onDelete(visit)}
+                      />
                     </Stack>
                   </TableCell>
                 </TableRow>
@@ -200,9 +246,13 @@ function VisitsCard({ patientId, visits }: { patientId: number; visits: Visit[] 
 function MedicationsCard({
   patientId,
   medications,
+  onDelete,
+  onStatusChange,
 }: {
   patientId: number;
   medications: Medication[];
+  onDelete: (medication: Medication) => void;
+  onStatusChange: (medication: Medication, isActive: boolean) => void;
 }) {
   return (
     <Card variant="outlined" sx={chartCardSx}>
@@ -231,15 +281,23 @@ function MedicationsCard({
                   <TableCell>{medication.dosage}</TableCell>
                   <TableCell>{medication.frequency}</TableCell>
                   <TableCell>{displayValue(medication.duration)}</TableCell>
-                  <TableCell>{medication.is_active ? "Active" : "Inactive"}</TableCell>
                   <TableCell>
-                    <Button
-                      component={RouterLink}
-                      to={`/patients/${patientId}/medications/${medication.id}/edit`}
+                    <TextField
+                      select
                       size="small"
+                      value={medication.is_active ? "true" : "false"}
+                      onChange={(event) => onStatusChange(medication, event.target.value === "true")}
+                      sx={statusSelectSx}
                     >
-                      Edit
-                    </Button>
+                      <MenuItem value="true">Active</MenuItem>
+                      <MenuItem value="false">Inactive</MenuItem>
+                    </TextField>
+                  </TableCell>
+                  <TableCell>
+                    <DeleteAction
+                      canDelete={medication.can_delete}
+                      onDelete={() => onDelete(medication)}
+                    />
                   </TableCell>
                 </TableRow>
               ))}
@@ -254,9 +312,13 @@ function MedicationsCard({
 function DiagnosesCard({
   patientId,
   diagnoses,
+  onDelete,
+  onStatusChange,
 }: {
   patientId: number;
   diagnoses: Diagnosis[];
+  onDelete: (diagnosis: Diagnosis) => void;
+  onStatusChange: (diagnosis: Diagnosis, status: string) => void;
 }) {
   return (
     <Card variant="outlined" sx={chartCardSx}>
@@ -283,7 +345,20 @@ function DiagnosesCard({
               {diagnoses.map((diagnosis) => (
                 <TableRow key={diagnosis.id}>
                   <TableCell>{diagnosis.name}</TableCell>
-                  <TableCell>{diagnosis.status}</TableCell>
+                  <TableCell>
+                    <TextField
+                      select
+                      size="small"
+                      value={diagnosis.status}
+                      onChange={(event) => onStatusChange(diagnosis, event.target.value)}
+                      sx={{ ...statusSelectSx, minWidth: 135 }}
+                    >
+                      <MenuItem value="current">Current</MenuItem>
+                      <MenuItem value="chronic">Chronic</MenuItem>
+                      <MenuItem value="remission">Remission</MenuItem>
+                      <MenuItem value="resolved">Resolved</MenuItem>
+                    </TextField>
+                  </TableCell>
                   <TableCell>{diagnosis.date_diagnosed}</TableCell>
                   <TableCell>{displayValue(diagnosis.diagnosis_code)}</TableCell>
                   <TableCell>{displayValue(diagnosis.provider_name)}</TableCell>
@@ -315,13 +390,10 @@ function DiagnosesCard({
                       >
                         Notes
                       </Button>
-                      <Button
-                        component={RouterLink}
-                        to={`/patients/${patientId}/diagnoses/${diagnosis.id}/edit`}
-                        size="small"
-                      >
-                        Edit
-                      </Button>
+                      <DeleteAction
+                        canDelete={diagnosis.can_delete}
+                        onDelete={() => onDelete(diagnosis)}
+                      />
                     </Stack>
                   </TableCell>
                 </TableRow>
@@ -334,7 +406,15 @@ function DiagnosesCard({
   );
 }
 
-function AllergiesCard({ patientId, allergies }: { patientId: number; allergies: Allergy[] }) {
+function AllergiesCard({
+  patientId,
+  allergies,
+  onDelete,
+}: {
+  patientId: number;
+  allergies: Allergy[];
+  onDelete: (allergy: Allergy) => void;
+}) {
   return (
     <Card variant="outlined" sx={chartCardSx}>
       <CardHeader
@@ -358,13 +438,10 @@ function AllergiesCard({ patientId, allergies }: { patientId: number; allergies:
                   <TableCell>{allergy.substance}</TableCell>
                   <TableCell>{displayValue(allergy.reaction)}</TableCell>
                   <TableCell>
-                    <Button
-                      component={RouterLink}
-                      to={`/patients/${patientId}/allergies/${allergy.id}/edit`}
-                      size="small"
-                    >
-                      Edit
-                    </Button>
+                    <DeleteAction
+                      canDelete={allergy.can_delete}
+                      onDelete={() => onDelete(allergy)}
+                    />
                   </TableCell>
                 </TableRow>
               ))}
@@ -386,7 +463,13 @@ export default function PatientDetail() {
   const [loading, setLoading] = useState(false);
   const [savingOrder, setSavingOrder] = useState(false);
   const [error, setError] = useState("");
+  const [mutationError, setMutationError] = useState("");
   const [preferenceError, setPreferenceError] = useState("");
+
+  const refreshPatient = async () => {
+    const data = await getPatient(patientId);
+    setPatient(data);
+  };
 
   useEffect(() => {
     const loadPatient = async () => {
@@ -398,6 +481,7 @@ export default function PatientDetail() {
 
       setLoading(true);
       setError("");
+      setMutationError("");
       setPreferenceError("");
 
       try {
@@ -440,7 +524,6 @@ export default function PatientDetail() {
   }
 
   const latestVitals = patient.latest_vitals;
-  const orderedCards = buildOrderedCards(cardOrder, patient);
 
   const moveDraftCard = (index: number, direction: -1 | 1) => {
     const nextIndex = index + direction;
@@ -478,6 +561,104 @@ export default function PatientDetail() {
     }
   };
 
+  const handleMedicationStatusChange = async (medication: Medication, isActive: boolean) => {
+    if (medication.is_active === isActive) {
+      return;
+    }
+
+    setMutationError("");
+    try {
+      await updateMedication(medication.id, { is_active: isActive });
+      await refreshPatient();
+    } catch {
+      setMutationError("Unable to update medication status.");
+    }
+  };
+
+  const handleDiagnosisStatusChange = async (diagnosis: Diagnosis, nextStatus: string) => {
+    if (diagnosis.status === nextStatus) {
+      return;
+    }
+
+    setMutationError("");
+    try {
+      await updateDiagnosis(diagnosis.id, { status: nextStatus });
+      await refreshPatient();
+    } catch {
+      setMutationError("Unable to update diagnosis status.");
+    }
+  };
+
+  const confirmRecentDelete = (recordName: string) =>
+    window.confirm(
+      `Delete this ${recordName}? Only records you created less than 8 hours ago can be deleted.`,
+    );
+
+  const handleVisitDelete = async (visit: Visit) => {
+    if (!confirmRecentDelete("visit")) {
+      return;
+    }
+
+    setMutationError("");
+    try {
+      await deleteVisit(visit.id);
+      await refreshPatient();
+    } catch {
+      setMutationError("Unable to delete visit.");
+    }
+  };
+
+  const handleMedicationDelete = async (medication: Medication) => {
+    if (!confirmRecentDelete("medication")) {
+      return;
+    }
+
+    setMutationError("");
+    try {
+      await deleteMedication(medication.id);
+      await refreshPatient();
+    } catch {
+      setMutationError("Unable to delete medication.");
+    }
+  };
+
+  const handleDiagnosisDelete = async (diagnosis: Diagnosis) => {
+    if (!confirmRecentDelete("diagnosis")) {
+      return;
+    }
+
+    setMutationError("");
+    try {
+      await deleteDiagnosis(diagnosis.id);
+      await refreshPatient();
+    } catch {
+      setMutationError("Unable to delete diagnosis.");
+    }
+  };
+
+  const handleAllergyDelete = async (allergy: Allergy) => {
+    if (!confirmRecentDelete("allergy")) {
+      return;
+    }
+
+    setMutationError("");
+    try {
+      await deleteAllergy(allergy.id);
+      await refreshPatient();
+    } catch {
+      setMutationError("Unable to delete allergy.");
+    }
+  };
+
+  const orderedCards = buildOrderedCards(cardOrder, patient, {
+    onAllergyDelete: handleAllergyDelete,
+    onDiagnosisDelete: handleDiagnosisDelete,
+    onDiagnosisStatusChange: handleDiagnosisStatusChange,
+    onMedicationDelete: handleMedicationDelete,
+    onMedicationStatusChange: handleMedicationStatusChange,
+    onVisitDelete: handleVisitDelete,
+  });
+
   return (
     <Stack spacing={3} sx={{ textAlign: "left" }}>
       <Stack direction="row" spacing={1.5} sx={{ flexWrap: "wrap" }}>
@@ -495,6 +676,15 @@ export default function PatientDetail() {
           sx={{ backgroundColor: "#fff7e6", borderColor: "#f2d28b", color: "#6b4b00", p: 1.5 }}
         >
           <Typography>{preferenceError}</Typography>
+        </Paper>
+      )}
+
+      {mutationError && (
+        <Paper
+          variant="outlined"
+          sx={{ backgroundColor: "#fdecec", borderColor: "#e4a3a3", color: "#7a1f1f", p: 1.5 }}
+        >
+          <Typography>{mutationError}</Typography>
         </Paper>
       )}
 
@@ -618,12 +808,51 @@ function isValidCardOrder(order: PatientCardKey[]): boolean {
   return order.length === defaultCardOrder.length && defaultCardOrder.every((key) => order.includes(key));
 }
 
-function buildOrderedCards(order: PatientCardKey[], patient: PatientDetailType) {
+type PatientCardActions = {
+  onAllergyDelete: (allergy: Allergy) => void;
+  onDiagnosisDelete: (diagnosis: Diagnosis) => void;
+  onDiagnosisStatusChange: (diagnosis: Diagnosis, status: string) => void;
+  onMedicationDelete: (medication: Medication) => void;
+  onMedicationStatusChange: (medication: Medication, isActive: boolean) => void;
+  onVisitDelete: (visit: Visit) => void;
+};
+
+function buildOrderedCards(
+  order: PatientCardKey[],
+  patient: PatientDetailType,
+  actions: PatientCardActions,
+) {
   const cardMap: Record<PatientCardKey, ReactElement> = {
-    medications: <MedicationsCard patientId={patient.id} medications={patient.medications} />,
-    diagnoses: <DiagnosesCard patientId={patient.id} diagnoses={patient.diagnoses} />,
-    allergies: <AllergiesCard patientId={patient.id} allergies={patient.allergies} />,
-    visits: <VisitsCard patientId={patient.id} visits={patient.visits} />,
+    medications: (
+      <MedicationsCard
+        patientId={patient.id}
+        medications={patient.medications}
+        onDelete={actions.onMedicationDelete}
+        onStatusChange={actions.onMedicationStatusChange}
+      />
+    ),
+    diagnoses: (
+      <DiagnosesCard
+        patientId={patient.id}
+        diagnoses={patient.diagnoses}
+        onDelete={actions.onDiagnosisDelete}
+        onStatusChange={actions.onDiagnosisStatusChange}
+      />
+    ),
+    allergies: (
+      <AllergiesCard
+        patientId={patient.id}
+        allergies={patient.allergies}
+        onDelete={actions.onAllergyDelete}
+      />
+    ),
+    visits: (
+      <VisitsCard
+        patientId={patient.id}
+        visits={patient.visits}
+        onDelete={actions.onVisitDelete}
+      />
+    ),
   };
 
   const safeOrder = isValidCardOrder(order) ? order : defaultCardOrder;

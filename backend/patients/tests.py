@@ -1,5 +1,8 @@
+from datetime import timedelta
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
+from django.utils import timezone
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -183,21 +186,25 @@ class PatientApiTests(APITestCase):
                 "view_visit",
                 "add_visit",
                 "change_visit",
+                "delete_visit",
                 "view_visitnote",
                 "add_visitnote",
                 "change_visitnote",
                 "view_medication",
                 "add_medication",
                 "change_medication",
+                "delete_medication",
                 "view_diagnosis",
                 "add_diagnosis",
                 "change_diagnosis",
+                "delete_diagnosis",
                 "view_diagnosisnote",
                 "add_diagnosisnote",
                 "change_diagnosisnote",
                 "view_allergy",
                 "add_allergy",
                 "change_allergy",
+                "delete_allergy",
                 "view_vital",
                 "add_vital",
                 "change_vital",
@@ -438,7 +445,7 @@ class PatientApiTests(APITestCase):
         self.assertEqual(patient.visits.count(), 1)
         self.assertEqual(response.data["notes"], [])
 
-    def test_doctor_can_update_visit(self):
+    def test_doctor_cannot_update_visit_after_creation(self):
         self.client.force_authenticate(user=self.doctor)
         patient = Patient.objects.create(first_name="Casey", last_name="Rivera")
         visit = Visit.objects.create(
@@ -453,9 +460,9 @@ class PatientApiTests(APITestCase):
             format="json",
         )
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         visit.refresh_from_db()
-        self.assertEqual(visit.staff_assigned, "Nurse Gomez")
+        self.assertEqual(visit.staff_assigned, "")
 
     def test_create_and_list_visit_notes_for_visit(self):
         self.client.force_authenticate(user=self.doctor)
@@ -523,7 +530,7 @@ class PatientApiTests(APITestCase):
         self.assertEqual(own_note.content, "Updated doctor note.")
         self.assertEqual(nurse_note.content, "Original nurse note.")
 
-    def test_create_and_update_medication_with_duration_and_status(self):
+    def test_create_and_update_medication_status_only(self):
         self.client.force_authenticate(user=self.doctor)
         patient = Patient.objects.create(first_name="Casey", last_name="Rivera")
         payload = {
@@ -542,7 +549,12 @@ class PatientApiTests(APITestCase):
         medication_id = create_response.data["id"]
         update_response = self.client.patch(
             reverse("medication-detail", kwargs={"pk": medication_id}),
-            {"duration": "14 days", "is_active": False},
+            {"is_active": False},
+            format="json",
+        )
+        full_update_response = self.client.patch(
+            reverse("medication-detail", kwargs={"pk": medication_id}),
+            {"duration": "14 days"},
             format="json",
         )
 
@@ -550,10 +562,69 @@ class PatientApiTests(APITestCase):
         self.assertEqual(create_response.data["duration"], "10 days")
         self.assertTrue(create_response.data["is_active"])
         self.assertEqual(update_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(update_response.data["duration"], "14 days")
+        self.assertEqual(update_response.data["duration"], "10 days")
         self.assertFalse(update_response.data["is_active"])
-        self.assertEqual(patient.medications.get().duration, "14 days")
+        self.assertEqual(full_update_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(patient.medications.get().duration, "10 days")
         self.assertFalse(patient.medications.get().is_active)
+
+    def test_creator_can_delete_own_recent_medication(self):
+        self.client.force_authenticate(user=self.doctor)
+        patient = Patient.objects.create(first_name="Casey", last_name="Rivera")
+        medication = Medication.objects.create(
+            patient=patient,
+            created_by=self.doctor,
+            name="Amoxicillin",
+            dosage="500 mg",
+            frequency="Twice daily",
+        )
+
+        response = self.client.delete(reverse("medication-detail", kwargs={"pk": medication.id}))
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(Medication.objects.count(), 0)
+
+    def test_creator_cannot_delete_own_medication_after_eight_hours(self):
+        self.client.force_authenticate(user=self.doctor)
+        patient = Patient.objects.create(first_name="Casey", last_name="Rivera")
+        medication = Medication.objects.create(
+            patient=patient,
+            created_by=self.doctor,
+            name="Amoxicillin",
+            dosage="500 mg",
+            frequency="Twice daily",
+        )
+        Medication.objects.filter(id=medication.id).update(
+            created_at=timezone.now() - timedelta(hours=8, minutes=1)
+        )
+
+        response = self.client.delete(reverse("medication-detail", kwargs={"pk": medication.id}))
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(Medication.objects.count(), 1)
+
+    def test_non_creator_cannot_delete_recent_medication(self):
+        other_doctor = create_user_with_permissions(
+            "other-doctor",
+            [
+                "view_medication",
+                "delete_medication",
+            ],
+        )
+        self.client.force_authenticate(user=other_doctor)
+        patient = Patient.objects.create(first_name="Casey", last_name="Rivera")
+        medication = Medication.objects.create(
+            patient=patient,
+            created_by=self.doctor,
+            name="Amoxicillin",
+            dosage="500 mg",
+            frequency="Twice daily",
+        )
+
+        response = self.client.delete(reverse("medication-detail", kwargs={"pk": medication.id}))
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(Medication.objects.count(), 1)
 
     def test_nurse_cannot_update_visit(self):
         self.client.force_authenticate(user=self.nurse)
@@ -676,7 +747,7 @@ class PatientApiTests(APITestCase):
         self.assertEqual(own_note.content, "Updated doctor diagnosis note.")
         self.assertEqual(nurse_note.content, "Original nurse diagnosis note.")
 
-    def test_doctor_can_update_diagnosis(self):
+    def test_doctor_can_update_only_diagnosis_status(self):
         self.client.force_authenticate(user=self.doctor)
         patient = Patient.objects.create(first_name="Casey", last_name="Rivera")
         diagnosis = Diagnosis.objects.create(
@@ -688,14 +759,20 @@ class PatientApiTests(APITestCase):
 
         response = self.client.patch(
             reverse("diagnosis-detail", kwargs={"pk": diagnosis.id}),
-            {"status": Diagnosis.Status.RESOLVED, "resolution_date": "2026-04-20"},
+            {"status": Diagnosis.Status.RESOLVED},
+            format="json",
+        )
+        blocked_response = self.client.patch(
+            reverse("diagnosis-detail", kwargs={"pk": diagnosis.id}),
+            {"provider_name": "Dr. Changed"},
             format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(blocked_response.status_code, status.HTTP_400_BAD_REQUEST)
         diagnosis.refresh_from_db()
         self.assertEqual(diagnosis.status, Diagnosis.Status.RESOLVED)
-        self.assertEqual(str(diagnosis.resolution_date), "2026-04-20")
+        self.assertEqual(diagnosis.provider_name, "")
 
     def test_create_vitals_for_visit(self):
         self.client.force_authenticate(user=self.doctor)

@@ -534,6 +534,8 @@ Response:
   {
     "id": 1,
     "patient": 1,
+    "created_by": 2,
+    "created_by_username": "doctor",
     "visit_date": "2026-04-10",
     "primary_care_physician": "Dr. Morgan Patel",
     "staff_assigned": "Nurse Lee",
@@ -551,6 +553,7 @@ Response:
       }
     ],
     "vitals": [],
+    "can_delete": true,
     "created_at": "2026-04-15T04:18:00Z",
     "updated_at": "2026-04-15T04:18:00Z"
   }
@@ -593,21 +596,23 @@ Response: visit object with nested `vitals`.
 
 ### PUT/PATCH `/api/visits/{id}/`
 
-Updates one visit.
+Visit records do not have a status field, so existing visit data cannot be changed through this endpoint after creation.
 
 Auth required: yes
 
 Permission required: `patients.change_visit`
 
-Patch request:
+Requests containing visit fields return `400 Bad Request`.
 
-```json
-{
-  "staff_assigned": "Nurse Lee"
-}
-```
+### DELETE `/api/visits/{id}/`
 
-Response: updated visit object.
+Deletes one visit only when the authenticated user created the visit and the visit is less than 8 hours old.
+
+Auth required: yes
+
+Permission required: `patients.delete_visit`
+
+Failure cases return `403 Forbidden`.
 
 ## Visit Note Endpoints
 
@@ -719,11 +724,14 @@ Response:
   {
     "id": 1,
     "patient": 1,
+    "created_by": 2,
+    "created_by_username": "doctor",
     "name": "Lisinopril",
     "dosage": "10 mg",
     "frequency": "Daily",
     "duration": "Ongoing",
     "is_active": true,
+    "can_delete": true,
     "created_at": "2026-04-15T04:18:00Z",
     "updated_at": "2026-04-15T04:18:00Z"
   }
@@ -764,7 +772,7 @@ Response: medication object.
 
 ### PUT/PATCH `/api/medications/{id}/`
 
-Updates one medication.
+Updates one medication status. Existing medication details are immutable after creation.
 
 Auth required: yes
 
@@ -774,13 +782,23 @@ Patch request:
 
 ```json
 {
-  "frequency": "Twice daily",
-  "duration": "30 days",
   "is_active": false
 }
 ```
 
 Response: updated medication object.
+
+Requests containing fields other than `is_active` return `400 Bad Request`.
+
+### DELETE `/api/medications/{id}/`
+
+Deletes one medication only when the authenticated user created it and it is less than 8 hours old.
+
+Auth required: yes
+
+Permission required: `patients.delete_medication`
+
+Failure cases return `403 Forbidden`.
 
 ## Diagnosis Endpoints
 
@@ -801,6 +819,8 @@ Response:
   {
     "id": 1,
     "patient": 1,
+    "created_by": 2,
+    "created_by_username": "doctor",
     "name": "Hypertension",
     "status": "current",
     "date_diagnosed": "2026-03-15",
@@ -820,6 +840,7 @@ Response:
         "updated_at": "2026-04-15T04:18:00Z"
       }
     ],
+    "can_delete": true,
     "created_at": "2026-04-15T04:18:00Z",
     "updated_at": "2026-04-15T04:18:00Z"
   }
@@ -861,7 +882,7 @@ Response: diagnosis object.
 
 ### PUT/PATCH `/api/diagnoses/{id}/`
 
-Updates one diagnosis.
+Updates one diagnosis status. Existing diagnosis details are immutable after creation.
 
 Auth required: yes
 
@@ -871,12 +892,23 @@ Patch request:
 
 ```json
 {
-  "status": "resolved",
-  "resolution_date": "2026-04-20"
+  "status": "resolved"
 }
 ```
 
 Response: updated diagnosis object.
+
+Requests containing fields other than `status` return `400 Bad Request`.
+
+### DELETE `/api/diagnoses/{id}/`
+
+Deletes one diagnosis only when the authenticated user created it and it is less than 8 hours old.
+
+Auth required: yes
+
+Permission required: `patients.delete_diagnosis`
+
+Failure cases return `403 Forbidden`.
 
 ## Diagnosis Note Endpoints
 
@@ -980,8 +1012,11 @@ Response:
   {
     "id": 1,
     "patient": 1,
+    "created_by": 2,
+    "created_by_username": "doctor",
     "substance": "Penicillin",
     "reaction": "Rash",
+    "can_delete": true,
     "created_at": "2026-04-15T04:18:00Z",
     "updated_at": "2026-04-15T04:18:00Z"
   }
@@ -1019,21 +1054,23 @@ Response: allergy object.
 
 ### PUT/PATCH `/api/allergies/{id}/`
 
-Updates one allergy.
+Allergy records do not have a status field, so existing allergy data cannot be changed through this endpoint after creation.
 
 Auth required: yes
 
 Permission required: `patients.change_allergy`
 
-Patch request:
+Requests containing allergy fields return `400 Bad Request`.
 
-```json
-{
-  "reaction": "Severe rash"
-}
-```
+### DELETE `/api/allergies/{id}/`
 
-Response: updated allergy object.
+Deletes one allergy only when the authenticated user created it and it is less than 8 hours old.
+
+Auth required: yes
+
+Permission required: `patients.delete_allergy`
+
+Failure cases return `403 Forbidden`.
 
 ## Vital Endpoints
 
@@ -1123,7 +1160,7 @@ Response: updated vital object.
 
 ## Current API Limitations
 
-- The current API does not expose delete endpoints for patient-domain records.
+- Patient-domain delete endpoints are exposed only for visits, medications, diagnoses, and allergies, and only for the creator within 8 hours of creation.
 - Patient detail is read-only; patient update is not currently exposed.
 - There is no audit-log API yet.
 - MFA is not implemented yet.

@@ -15,11 +15,14 @@ export interface Patient {
 export interface Visit {
   id: number;
   patient: number;
+  created_by?: number | null;
+  created_by_username?: string;
   visit_date: string;
   primary_care_physician: string;
   staff_assigned?: string;
   notes: VisitNote[];
   vitals: Vital[];
+  can_delete: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -65,11 +68,14 @@ export interface Vital {
 export interface Medication {
   id: number;
   patient: number;
+  created_by?: number | null;
+  created_by_username?: string;
   name: string;
   dosage: string;
   frequency: string;
   duration?: string;
   is_active: boolean;
+  can_delete: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -77,6 +83,8 @@ export interface Medication {
 export interface Diagnosis {
   id: number;
   patient: number;
+  created_by?: number | null;
+  created_by_username?: string;
   name: string;
   status: string;
   date_diagnosed: string;
@@ -84,6 +92,7 @@ export interface Diagnosis {
   provider_name?: string;
   resolution_date?: string | null;
   notes: DiagnosisNote[];
+  can_delete: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -91,8 +100,11 @@ export interface Diagnosis {
 export interface Allergy {
   id: number;
   patient: number;
+  created_by?: number | null;
+  created_by_username?: string;
   substance: string;
   reaction?: string;
+  can_delete: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -188,6 +200,10 @@ export const updateVisit = async (
   return res.data;
 };
 
+export const deleteVisit = async (visitId: number): Promise<void> => {
+  await api.delete(`/visits/${visitId}/`);
+};
+
 export const createVisitNote = async (
   visitId: number,
   note: VisitNotePayload,
@@ -236,6 +252,10 @@ export const updateMedication = async (
   return res.data;
 };
 
+export const deleteMedication = async (medicationId: number): Promise<void> => {
+  await api.delete(`/medications/${medicationId}/`);
+};
+
 export const createDiagnosis = async (
   patientId: number,
   diagnosis: DiagnosisPayload,
@@ -252,6 +272,10 @@ export const updateDiagnosis = async (
   return res.data;
 };
 
+export const deleteDiagnosis = async (diagnosisId: number): Promise<void> => {
+  await api.delete(`/diagnoses/${diagnosisId}/`);
+};
+
 export const createAllergy = async (
   patientId: number,
   allergy: AllergyPayload,
@@ -266,6 +290,10 @@ export const updateAllergy = async (
 ): Promise<Allergy> => {
   const res = await api.patch(`/allergies/${allergyId}/`, allergy);
   return res.data;
+};
+
+export const deleteAllergy = async (allergyId: number): Promise<void> => {
+  await api.delete(`/allergies/${allergyId}/`);
 };
 
 export const createVital = async (

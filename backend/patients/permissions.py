@@ -1,4 +1,20 @@
+from datetime import timedelta
+
+from django.utils import timezone
 from rest_framework.permissions import DjangoModelPermissions
+
+
+DELETE_WINDOW = timedelta(hours=8)
+
+
+def can_delete_recent_own_record(user, obj):
+    return bool(
+        user
+        and user.is_authenticated
+        and getattr(obj, "created_by_id", None) == user.id
+        and getattr(obj, "created_at", None)
+        and timezone.now() - obj.created_at < DELETE_WINDOW
+    )
 
 
 class ViewModelPermissions(DjangoModelPermissions):
@@ -37,3 +53,14 @@ class DiagnosisNotePermissions(ViewModelPermissions):
             return True
 
         return obj.author_id == request.user.id
+
+
+class PatientRecordMutationPermissions(ViewModelPermissions):
+    def has_object_permission(self, request, view, obj):
+        if not super().has_object_permission(request, view, obj):
+            return False
+
+        if request.method == "DELETE":
+            return can_delete_recent_own_record(request.user, obj)
+
+        return True

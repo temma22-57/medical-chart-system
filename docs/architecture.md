@@ -236,12 +236,15 @@ Current demo roles:
   - Cannot access patient records or related patient-domain endpoints.
 - `Doctor`
   - Can view, add, and change patient-domain records.
+  - Can delete visits, medications, diagnoses, and allergies only when they created the record less than 8 hours ago.
 - `Nurse`
   - Can view patient-domain records.
   - Can add and change only their own visit and diagnosis notes.
   - Cannot add or change restricted patient-domain records.
 
 The frontend routes Admin users to `/admin/users` and hides patient navigation/search for that role. The backend also enforces the separation: Admin-only user-management endpoints require the `Admin` group, and patient-domain permissions explicitly reject Admin users.
+
+Main patient-related table rows are mostly immutable after creation. The patient chart removes general edit actions, exposes inline status updates for medication active/inactive state and diagnosis status, and shows delete actions only when the API reports the record is eligible. The backend enforces the same policy by accepting only status-field updates on medication and diagnosis detail endpoints and by requiring `created_by` plus a server-side 8-hour age check for deletes.
 
 The backend does not currently implement MFA, audit logging, or a full enterprise permission matrix.
 
@@ -268,7 +271,7 @@ npm run lint
 ## Current Limitations
 
 - No patient update endpoint is exposed.
-- Delete endpoints are not exposed for patient-domain records.
+- Delete endpoints for visits, medications, diagnoses, and allergies are limited to the creator within 8 hours of creation.
 - MFA is represented only by `mfa_required: false` in login responses.
 - Audit logging is not implemented yet.
 - Visit staff attribution is stored as text, not linked to user accounts.

@@ -20,6 +20,13 @@ class Patient(models.Model):
 
 class Visit(models.Model):
     patient = models.ForeignKey(Patient, related_name="visits", on_delete=models.CASCADE)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name="created_visits",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+    )
     visit_date = models.DateField()
     primary_care_physician = models.CharField(max_length=150)
     staff_assigned = models.CharField(max_length=150, blank=True)
@@ -79,6 +86,13 @@ class Vital(models.Model):
 
 class Medication(models.Model):
     patient = models.ForeignKey(Patient, related_name="medications", on_delete=models.CASCADE)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name="created_medications",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+    )
     name = models.CharField(max_length=150)
     dosage = models.CharField(max_length=100)
     frequency = models.CharField(max_length=100)
@@ -103,6 +117,13 @@ class Diagnosis(models.Model):
         RESOLVED = "resolved", "Resolved"
 
     patient = models.ForeignKey(Patient, related_name="diagnoses", on_delete=models.CASCADE)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name="created_diagnoses",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+    )
     name = models.CharField(max_length=150)
     status = models.CharField(
         max_length=20,
@@ -155,6 +176,13 @@ class DiagnosisNote(models.Model):
 
 class Allergy(models.Model):
     patient = models.ForeignKey(Patient, related_name="allergies", on_delete=models.CASCADE)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name="created_allergies",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+    )
     substance = models.CharField(max_length=150)
     reaction = models.CharField(max_length=255, blank=True)
 

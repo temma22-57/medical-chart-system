@@ -53,7 +53,7 @@ Django provides the user, group, and permission tables. The `accounts` app also 
 Important project usage:
 
 - `Admin` group has no patient-domain permissions and is used by custom API permissions for user-management endpoints.
-- `Doctor` group has view/add/change permissions for patients, visits, visit notes, medications, diagnoses, diagnosis notes, allergies, and vitals.
+- `Doctor` group has view/add/change permissions for patients, visits, visit notes, medications, diagnoses, diagnosis notes, allergies, and vitals, plus delete permissions for visits, medications, diagnoses, and allergies subject to the creator-and-8-hour API rule.
 - `Nurse` group has view permissions for patients, visits, medications, diagnoses, allergies, and vitals plus view/add/change permissions for their own visit and diagnosis notes.
 - DRF token authentication stores API tokens in the `authtoken_token` table.
 
@@ -133,6 +133,7 @@ Fields:
 | --- | --- | --- |
 | `id` | Auto primary key | Django default primary key |
 | `patient` | `ForeignKey(Patient, related_name="visits", on_delete=CASCADE)` | Required |
+| `created_by` | `ForeignKey(settings.AUTH_USER_MODEL, related_name="created_visits", null=True, blank=True, on_delete=SET_NULL)` | Creator used for delete eligibility |
 | `visit_date` | `DateField()` | Required |
 | `primary_care_physician` | `CharField(max_length=150)` | Required text attribution |
 | `staff_assigned` | `CharField(max_length=150, blank=True)` | Optional text attribution |
@@ -232,6 +233,7 @@ Fields:
 | --- | --- | --- |
 | `id` | Auto primary key | Django default primary key |
 | `patient` | `ForeignKey(Patient, related_name="medications", on_delete=CASCADE)` | Required |
+| `created_by` | `ForeignKey(settings.AUTH_USER_MODEL, related_name="created_medications", null=True, blank=True, on_delete=SET_NULL)` | Creator used for delete eligibility |
 | `name` | `CharField(max_length=150)` | Required |
 | `dosage` | `CharField(max_length=100)` | Required |
 | `frequency` | `CharField(max_length=100)` | Required |
@@ -263,6 +265,7 @@ Fields:
 | --- | --- | --- |
 | `id` | Auto primary key | Django default primary key |
 | `patient` | `ForeignKey(Patient, related_name="diagnoses", on_delete=CASCADE)` | Required |
+| `created_by` | `ForeignKey(settings.AUTH_USER_MODEL, related_name="created_diagnoses", null=True, blank=True, on_delete=SET_NULL)` | Creator used for delete eligibility |
 | `name` | `CharField(max_length=150)` | Required |
 | `status` | `CharField(max_length=20)` | Required; choices are `current`, `chronic`, `remission`, `resolved` |
 | `date_diagnosed` | `DateField()` | Required |
@@ -326,6 +329,7 @@ Fields:
 | --- | --- | --- |
 | `id` | Auto primary key | Django default primary key |
 | `patient` | `ForeignKey(Patient, related_name="allergies", on_delete=CASCADE)` | Required |
+| `created_by` | `ForeignKey(settings.AUTH_USER_MODEL, related_name="created_allergies", null=True, blank=True, on_delete=SET_NULL)` | Creator used for delete eligibility |
 | `substance` | `CharField(max_length=150)` | Required |
 | `reaction` | `CharField(max_length=255, blank=True)` | Optional |
 | `created_at` | `DateTimeField(auto_now_add=True)` | Created timestamp |
@@ -352,7 +356,15 @@ Practical effect:
 - Deleting a visit deletes its visit notes and vitals.
 - Deleting a diagnosis deletes its diagnosis notes.
 
-The current API does not expose delete endpoints, but the database relationship behavior is still part of the model design.
+The API exposes delete endpoints for visits, medications, diagnoses, and allergies only when the authenticated user created the record and the record is less than 8 hours old. Records without `created_by`, including legacy rows, are not eligible for user deletion through those endpoints.
+
+## Edit Policy
+
+Main patient-related table entries are immutable after creation except for status fields:
+
+- Medication `is_active` can be changed.
+- Diagnosis `status` can be changed.
+- Visits and allergies do not currently have status fields, so their existing data cannot be changed through the normal API after creation.
 
 ## Current Schema Limitations
 

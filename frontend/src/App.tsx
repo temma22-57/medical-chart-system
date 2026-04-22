@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
+import { Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import { getCurrentUser, hasAuthToken, logout } from "./features/auth/authService";
 import type { CurrentUser } from "./features/auth/authService";
 import AuthenticatedLayout from "./components/AuthenticatedLayout";
@@ -130,13 +130,7 @@ function App() {
         />
         <Route
           path="/patients/:id/visits/:recordId/edit"
-          element={
-            isAdmin ? (
-              <Navigate to="/admin/users" replace />
-            ) : (
-              <PatientRelatedRecordFormPage recordType="visits" mode="edit" />
-            )
-          }
+          element={isAdmin ? <Navigate to="/admin/users" replace /> : <PatientDetailRedirect />}
         />
         <Route
           path="/patients/:id/visits/:recordId/notes"
@@ -164,13 +158,7 @@ function App() {
         />
         <Route
           path="/patients/:id/medications/:recordId/edit"
-          element={
-            isAdmin ? (
-              <Navigate to="/admin/users" replace />
-            ) : (
-              <PatientRelatedRecordFormPage recordType="medications" mode="edit" />
-            )
-          }
+          element={isAdmin ? <Navigate to="/admin/users" replace /> : <PatientDetailRedirect />}
         />
         <Route
           path="/patients/:id/diagnoses/new"
@@ -184,13 +172,7 @@ function App() {
         />
         <Route
           path="/patients/:id/diagnoses/:recordId/edit"
-          element={
-            isAdmin ? (
-              <Navigate to="/admin/users" replace />
-            ) : (
-              <PatientRelatedRecordFormPage recordType="diagnoses" mode="edit" />
-            )
-          }
+          element={isAdmin ? <Navigate to="/admin/users" replace /> : <PatientDetailRedirect />}
         />
         <Route
           path="/patients/:id/diagnoses/:recordId/notes"
@@ -214,13 +196,7 @@ function App() {
         />
         <Route
           path="/patients/:id/allergies/:recordId/edit"
-          element={
-            isAdmin ? (
-              <Navigate to="/admin/users" replace />
-            ) : (
-              <PatientRelatedRecordFormPage recordType="allergies" mode="edit" />
-            )
-          }
+          element={isAdmin ? <Navigate to="/admin/users" replace /> : <PatientDetailRedirect />}
         />
       </Route>
       <Route
@@ -234,6 +210,11 @@ function App() {
       />
     </Routes>
   );
+}
+
+function PatientDetailRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/patients/${id}`} replace />;
 }
 
 export default App;

@@ -19,21 +19,25 @@ class Command(BaseCommand):
                 "view_visit",
                 "add_visit",
                 "change_visit",
+                "delete_visit",
                 "view_visitnote",
                 "add_visitnote",
                 "change_visitnote",
                 "view_medication",
                 "add_medication",
                 "change_medication",
+                "delete_medication",
                 "view_diagnosis",
                 "add_diagnosis",
                 "change_diagnosis",
+                "delete_diagnosis",
                 "view_diagnosisnote",
                 "add_diagnosisnote",
                 "change_diagnosisnote",
                 "view_allergy",
                 "add_allergy",
                 "change_allergy",
+                "delete_allergy",
                 "view_vital",
                 "add_vital",
                 "change_vital",
@@ -151,6 +155,7 @@ class Command(BaseCommand):
                     },
                 },
             ],
+            creator=doctor,
             medications=[
                 {
                     "name": "Lisinopril",
@@ -231,6 +236,7 @@ class Command(BaseCommand):
                     },
                 }
             ],
+            creator=doctor,
             medications=[
                 {
                     "name": "Albuterol inhaler",
@@ -284,7 +290,7 @@ class Command(BaseCommand):
             ],
         )
 
-    def create_related_records(self, patient, visits, medications, diagnoses, allergies):
+    def create_related_records(self, patient, visits, medications, diagnoses, allergies, creator):
         for visit_data in visits:
             vitals_data = visit_data.pop("vitals")
             notes_data = visit_data.pop("notes")
@@ -294,6 +300,7 @@ class Command(BaseCommand):
                 primary_care_physician=visit_data["primary_care_physician"],
                 defaults={
                     "staff_assigned": visit_data["staff_assigned"],
+                    "created_by": creator,
                 },
             )
             for note_data in notes_data:
@@ -323,6 +330,7 @@ class Command(BaseCommand):
                     "frequency": medication_data["frequency"],
                     "duration": medication_data.get("duration", ""),
                     "is_active": medication_data.get("is_active", True),
+                    "created_by": creator,
                 },
             )
 
@@ -337,6 +345,7 @@ class Command(BaseCommand):
                     "diagnosis_code": diagnosis_data.get("diagnosis_code", ""),
                     "provider_name": diagnosis_data.get("provider_name", ""),
                     "resolution_date": diagnosis_data.get("resolution_date"),
+                    "created_by": creator,
                 },
             )
             for note_data in notes_data:
@@ -352,5 +361,6 @@ class Command(BaseCommand):
                 substance=allergy_data["substance"],
                 defaults={
                     "reaction": allergy_data["reaction"],
+                    "created_by": creator,
                 },
             )

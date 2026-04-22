@@ -11,7 +11,13 @@ vi.mock("../features/auth/authService", () => ({
 }));
 
 vi.mock("../features/patients/patientService", () => ({
+  deleteAllergy: vi.fn(),
+  deleteDiagnosis: vi.fn(),
+  deleteMedication: vi.fn(),
+  deleteVisit: vi.fn(),
   getPatient: vi.fn(),
+  updateDiagnosis: vi.fn(),
+  updateMedication: vi.fn(),
 }));
 
 describe("PatientDetail", () => {
@@ -40,6 +46,7 @@ describe("PatientDetail", () => {
           frequency: "Daily",
           duration: "Ongoing",
           is_active: true,
+          can_delete: false,
         },
       ],
       diagnoses: [
@@ -51,6 +58,7 @@ describe("PatientDetail", () => {
           date_diagnosed: "2026-04-01",
           diagnosis_code: "I10",
           provider_name: "Dr. Smith",
+          can_delete: false,
           notes: [
             {
               id: 12,
@@ -71,6 +79,7 @@ describe("PatientDetail", () => {
           patient: 7,
           substance: "Penicillin",
           reaction: "Rash",
+          can_delete: false,
         },
       ],
       visits: [
@@ -80,6 +89,7 @@ describe("PatientDetail", () => {
           visit_date: "2026-04-13",
           primary_care_physician: "Dr. Smith",
           staff_assigned: "Nurse Gomez",
+          can_delete: false,
           notes: [
             {
               id: 10,
@@ -127,7 +137,7 @@ describe("PatientDetail", () => {
     expect(screen.getByText("English")).toBeInTheDocument();
     expect(screen.getByText("122/78")).toBeInTheDocument();
     expect(screen.getByText("Hypertension")).toBeInTheDocument();
-    expect(screen.getByText("current")).toBeInTheDocument();
+    expect(screen.getByText("Current")).toBeInTheDocument();
     expect(screen.getByText("I10")).toBeInTheDocument();
     expect(screen.getByText("Lisinopril")).toBeInTheDocument();
     expect(screen.getByText("Ongoing")).toBeInTheDocument();
