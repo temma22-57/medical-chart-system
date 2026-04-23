@@ -132,12 +132,12 @@ function formatTimestamp(value?: string) {
 
 function formatVitalSummary(vital: Vital) {
   return [
-    `BP ${displayValue(vital.blood_pressure)}`,
-    `HR ${displayValue(vital.heart_rate)}`,
-    `Temp ${displayValue(vital.temperature)}`,
-    `Ht ${displayValue(vital.height)}`,
-    `Wt ${displayValue(vital.weight)}`,
-  ].join(" | ");
+    ["BP", displayValue(vital.blood_pressure)],
+    ["HR", displayValue(vital.heart_rate)],
+    ["Temp", displayValue(vital.temperature)],
+    ["Ht", displayValue(vital.height)],
+    ["Wt", displayValue(vital.weight)],
+  ] as const;
 }
 
 function SectionTitle({
@@ -230,18 +230,31 @@ function VisitsCard({
                     ) : (
                       <Box sx={visitVitalsBoxSx}>
                         <Stack spacing={0.75}>
-                          {visit.vitals.map((vital) => (
+                          {visit.vitals.map((vital) => {
+                            const vitalSummary = formatVitalSummary(vital);
+
+                            return (
                             <Box key={vital.id}>
                               <Typography sx={{ color: "#f4f7f1" }}>
-                                {formatVitalSummary(vital)}
+                                {vitalSummary.map(([label, value], index) => (
+                                  <Box
+                                    component="span"
+                                    key={label}
+                                    sx={{ display: "inline" }}
+                                  >
+                                    <Box component="span" sx={{ fontWeight: 700 }}>
+                                      {label}
+                                    </Box>{" "}
+                                    <Box component="span" sx={{ fontStyle: "italic" }}>
+                                      {value}
+                                    </Box>
+                                    {index < vitalSummary.length - 1 ? " | " : ""}
+                                  </Box>
+                                ))}
                               </Typography>
-                              {vital.collected_at && (
-                                <Typography variant="caption" sx={{ color: "#c4ccbe" }}>
-                                  {formatTimestamp(vital.collected_at)}
-                                </Typography>
-                              )}
                             </Box>
-                          ))}
+                            );
+                          })}
                         </Stack>
                       </Box>
                     )}
