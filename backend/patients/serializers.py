@@ -204,15 +204,11 @@ class PatientSerializer(serializers.ModelSerializer):
         date_of_birth = attrs.get("date_of_birth")
         phone = attrs.get("phone") or ""
 
-        if Patient.objects.filter(
-            first_name=first_name,
-            last_name=last_name,
-            date_of_birth=date_of_birth,
-            phone=phone,
-        ).exists():
-            raise serializers.ValidationError(
-                "An identical patient record already exists."
-            )
+        for patient in Patient.objects.filter(first_name=first_name, last_name=last_name):
+            if patient.date_of_birth == date_of_birth and (patient.phone or "") == phone:
+                raise serializers.ValidationError(
+                    "An identical patient record already exists."
+                )
 
         return attrs
 

@@ -1,14 +1,32 @@
 services:
   db:
-    image: postgres:15
+    build:
+      context: ./backend
+      dockerfile: db/Dockerfile
+    user: "0:0"
     environment:
       POSTGRES_DB: ${DB_NAME:-medical_chart}
       POSTGRES_USER: ${DB_USER:-medical_chart_user}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-medical_chart_password}
+      POSTGRES_ENABLE_TLS: ${POSTGRES_ENABLE_TLS:-True}
+      POSTGRES_TLS_CERT_DIR: /certs/postgres
+    command:
+      - postgres
+      - -c
+      - ssl=on
+      - -c
+      - ssl_cert_file=/certs/postgres/server.crt
+      - -c
+      - ssl_key_file=/certs/postgres/server.key
+      - -c
+      - ssl_ca_file=/certs/postgres/ca.crt
+      - -c
+      - hba_file=/etc/postgresql/pg_hba.conf
     ports:
       - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./.local/certs/postgres:/certs/postgres
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-medical_chart_user} -d ${DB_NAME:-medical_chart}"]
       interval: 5s
@@ -26,6 +44,10 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-medical_chart_password}
       DB_HOST: db
       DB_PORT: 5432
+      DB_SSLMODE: ${DB_SSLMODE:-verify-full}
+      DB_SSLROOTCERT: /certs/postgres/ca.crt
+      DB_SSLCERT: ${DB_SSLCERT:-}
+      DB_SSLKEY: ${DB_SSLKEY:-}
       DB_STARTUP_MAX_ATTEMPTS: ${DB_STARTUP_MAX_ATTEMPTS:-30}
       EMAIL_BACKEND: ${EMAIL_BACKEND:-django.core.mail.backends.smtp.EmailBackend}
       EMAIL_HOST: ${EMAIL_HOST:-smtp.gmail.com}
@@ -34,6 +56,7 @@ services:
       EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
       EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
       DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-no-reply@medical-chart.local}
+      DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY:-}
       MFA_CODE_TTL_MINUTES: ${MFA_CODE_TTL_MINUTES:-10}
       MFA_RESEND_THROTTLE_SECONDS: ${MFA_RESEND_THROTTLE_SECONDS:-30}
       MFA_MAX_FAILED_ATTEMPTS: ${MFA_MAX_FAILED_ATTEMPTS:-5}
@@ -41,6 +64,7 @@ services:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
       - ./backend:/app
+      - ./.local/certs/postgres:/certs/postgres:ro
     depends_on:
       db:
         condition: service_healthy
