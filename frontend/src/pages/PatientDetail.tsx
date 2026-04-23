@@ -42,6 +42,7 @@ import type {
   DiagnosisNote,
   Medication,
   PatientDetail as PatientDetailType,
+  Vital,
   Visit,
 } from "../features/patients/patientService";
 
@@ -88,6 +89,13 @@ const visitNotesBoxSx = {
   wordBreak: "break-word",
 };
 
+const visitVitalsBoxSx = {
+  maxHeight: 120,
+  maxWidth: 360,
+  overflowY: "auto",
+  pr: 1,
+};
+
 const statusSelectSx = {
   minWidth: 120,
   "& .MuiInputBase-input": {
@@ -120,6 +128,16 @@ function formatTimestamp(value?: string) {
   }
 
   return new Date(value).toLocaleString();
+}
+
+function formatVitalSummary(vital: Vital) {
+  return [
+    `BP ${displayValue(vital.blood_pressure)}`,
+    `HR ${displayValue(vital.heart_rate)}`,
+    `Temp ${displayValue(vital.temperature)}`,
+    `Ht ${displayValue(vital.height)}`,
+    `Wt ${displayValue(vital.weight)}`,
+  ].join(" | ");
 }
 
 function SectionTitle({
@@ -195,6 +213,7 @@ function VisitsCard({
                 <TableCell>Date</TableCell>
                 <TableCell>Physician</TableCell>
                 <TableCell>Staff</TableCell>
+                <TableCell>Vitals</TableCell>
                 <TableCell>Notes</TableCell>
                 <TableCell>Actions</TableCell>
               </TableRow>
@@ -205,6 +224,28 @@ function VisitsCard({
                   <TableCell>{visit.visit_date}</TableCell>
                   <TableCell>{visit.primary_care_physician}</TableCell>
                   <TableCell>{displayValue(visit.staff_assigned)}</TableCell>
+                  <TableCell>
+                    {visit.vitals.length === 0 ? (
+                      <Typography sx={{ color: "#c4ccbe" }}>No vitals</Typography>
+                    ) : (
+                      <Box sx={visitVitalsBoxSx}>
+                        <Stack spacing={0.75}>
+                          {visit.vitals.map((vital) => (
+                            <Box key={vital.id}>
+                              <Typography sx={{ color: "#f4f7f1" }}>
+                                {formatVitalSummary(vital)}
+                              </Typography>
+                              {vital.collected_at && (
+                                <Typography variant="caption" sx={{ color: "#c4ccbe" }}>
+                                  {formatTimestamp(vital.collected_at)}
+                                </Typography>
+                              )}
+                            </Box>
+                          ))}
+                        </Stack>
+                      </Box>
+                    )}
+                  </TableCell>
                   <TableCell>
                     {visit.notes.length === 0 ? (
                       <Typography sx={{ color: "#c4ccbe" }}>No notes recorded.</Typography>

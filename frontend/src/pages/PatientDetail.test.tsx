@@ -102,7 +102,19 @@ describe("PatientDetail", () => {
               updated_at: "2026-04-13T17:00:00Z",
             },
           ],
-          vitals: [],
+          vitals: [
+            {
+              id: 6,
+              visit: 5,
+              patient: 7,
+              height: "67.50",
+              weight: "145.25",
+              blood_pressure: "122/78",
+              heart_rate: 74,
+              temperature: "98.70",
+              collected_at: "2026-04-13T16:30:00Z",
+            },
+          ],
         },
       ],
       latest_vitals: {
@@ -143,6 +155,9 @@ describe("PatientDetail", () => {
     expect(screen.getByText("Ongoing")).toBeInTheDocument();
     expect(screen.getByText("Active")).toBeInTheDocument();
     expect(screen.getByText("Penicillin")).toBeInTheDocument();
+    expect(
+      screen.getByText("BP 122/78 | HR 74 | Temp 98.70 | Ht 67.50 | Wt 145.25"),
+    ).toBeInTheDocument();
     expect(screen.getByText("Medication review.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /set table order/i })).toBeInTheDocument();
   });
