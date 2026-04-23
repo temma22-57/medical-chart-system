@@ -5,6 +5,10 @@ import {
   Card,
   CardContent,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   MenuItem,
   Paper,
   Stack,
@@ -77,8 +81,11 @@ export default function UserManagementPage({ currentUser }: UserManagementPagePr
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [form, setForm] = useState<NewUserForm>(initialForm);
   const [passwords, setPasswords] = useState<Record<number, string>>({});
+  const [emailEditUser, setEmailEditUser] = useState<ManagedUser | null>(null);
+  const [emailValue, setEmailValue] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [emailSaving, setEmailSaving] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const userDisplayName =
@@ -149,6 +156,46 @@ export default function UserManagementPage({ currentUser }: UserManagementPagePr
       setMessage(`Password reset for ${user.username}.`);
     } catch (resetError) {
       setError(getErrorMessage(resetError));
+    }
+  };
+
+  const openEmailDialog = (user: ManagedUser) => {
+    setError("");
+    setMessage("");
+    setEmailEditUser(user);
+    setEmailValue(user.email || "");
+  };
+
+  const closeEmailDialog = () => {
+    if (emailSaving) {
+      return;
+    }
+
+    setEmailEditUser(null);
+    setEmailValue("");
+  };
+
+  const handleEmailSave = async () => {
+    if (!emailEditUser) {
+      return;
+    }
+
+    setEmailSaving(true);
+    setError("");
+    setMessage("");
+
+    try {
+      await updateManagedUser(emailEditUser.id, { email: emailValue });
+      setMessage(
+        `${emailEditUser.email ? "Updated" : "Added"} email for ${emailEditUser.username}.`,
+      );
+      setEmailEditUser(null);
+      setEmailValue("");
+      await loadUsers();
+    } catch (updateError) {
+      setError(getErrorMessage(updateError));
+    } finally {
+      setEmailSaving(false);
     }
   };
 
@@ -426,6 +473,7 @@ export default function UserManagementPage({ currentUser }: UserManagementPagePr
                       <TableCell>Email</TableCell>
                       <TableCell>Role</TableCell>
                       <TableCell>Reset Password</TableCell>
+                      <TableCell>Edit Email</TableCell>
                       <TableCell>Delete</TableCell>
                     </TableRow>
                   </TableHead>
@@ -498,6 +546,16 @@ export default function UserManagementPage({ currentUser }: UserManagementPagePr
                         <TableCell>
                           <Button
                             type="button"
+                            onClick={() => openEmailDialog(user)}
+                            variant="text"
+                            sx={{ color: "#9bd18f", fontWeight: 700, whiteSpace: "nowrap" }}
+                          >
+                            Edit Email
+                          </Button>
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            type="button"
                             onClick={() => handleDelete(user)}
                             disabled={user.id === currentUser.id}
                             variant="text"
@@ -519,6 +577,38 @@ export default function UserManagementPage({ currentUser }: UserManagementPagePr
           </CardContent>
         </Card>
       </Stack>
+
+      <Dialog open={Boolean(emailEditUser)} onClose={closeEmailDialog} fullWidth maxWidth="xs">
+        <DialogTitle sx={{ pb: 1 }}>
+          {emailEditUser?.email ? "Edit Email" : "Add Email"}
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 0.5 }}>
+            <Typography sx={{ color: "#4c5a4e" }}>
+              {emailEditUser
+                ? `Update the email address for ${emailEditUser.username}.`
+                : ""}
+            </Typography>
+            <TextField
+              autoFocus
+              label="Email"
+              type="email"
+              fullWidth
+              value={emailValue}
+              onChange={(event) => setEmailValue(event.target.value)}
+              placeholder="user@example.com"
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={closeEmailDialog} disabled={emailSaving}>
+            Cancel
+          </Button>
+          <Button onClick={handleEmailSave} disabled={emailSaving} variant="contained">
+            {emailSaving ? "Saving..." : "Save"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }
