@@ -235,6 +235,11 @@ Patch request:
 
 Response: updated user object.
 
+Notes:
+
+- Admin user-management uses this endpoint for row-level email updates in the account table.
+- `email` is validated as an email address and may be blank to remove an email.
+
 ### POST `/api/auth/users/{id}/reset-password/`
 
 Resets a user's password and deletes existing API tokens for that user.

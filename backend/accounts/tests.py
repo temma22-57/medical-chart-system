@@ -227,6 +227,51 @@ class AdminUserManagementApiTests(APITestCase):
         self.assertEqual(delete_response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(get_user_model().objects.filter(id=user_id).exists())
 
+    def test_admin_can_add_and_update_managed_user_email(self):
+        managed_user = get_user_model().objects.create_user(
+            username="doctor",
+            password="doctorpass",
+        )
+        managed_user.groups.add(self.doctor_group)
+        self.client.force_authenticate(user=self.admin)
+
+        add_email_response = self.client.patch(
+            reverse("managed-user-detail", kwargs={"pk": managed_user.id}),
+            {"email": "Doctor@Example.com"},
+            format="json",
+        )
+
+        self.assertEqual(add_email_response.status_code, status.HTTP_200_OK)
+        managed_user.refresh_from_db()
+        self.assertEqual(managed_user.email, "doctor@example.com")
+
+        update_email_response = self.client.patch(
+            reverse("managed-user-detail", kwargs={"pk": managed_user.id}),
+            {"email": "updated@example.com"},
+            format="json",
+        )
+
+        self.assertEqual(update_email_response.status_code, status.HTTP_200_OK)
+        managed_user.refresh_from_db()
+        self.assertEqual(managed_user.email, "updated@example.com")
+
+    def test_admin_email_update_rejects_invalid_email(self):
+        managed_user = get_user_model().objects.create_user(
+            username="doctor",
+            password="doctorpass",
+        )
+        managed_user.groups.add(self.doctor_group)
+        self.client.force_authenticate(user=self.admin)
+
+        response = self.client.patch(
+            reverse("managed-user-detail", kwargs={"pk": managed_user.id}),
+            {"email": "not-an-email"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("email", response.data)
+
     def test_doctor_cannot_manage_users(self):
         doctor = get_user_model().objects.create_user(
             username="doctor",
