@@ -263,12 +263,13 @@ class DemoDataCommandTests(APITestCase):
         self.assertEqual(Medication.objects.count(), 3)
         self.assertEqual(Allergy.objects.count(), 3)
         self.assertEqual(Vital.objects.count(), 3)
+        jordan = Patient.objects.get(first_name="Jordan", last_name="Kim")
+        self.assertTrue(jordan.medications.filter(name="Lisinopril").exists())
+        self.assertTrue(jordan.allergies.filter(substance="Penicillin").exists())
         self.assertTrue(
-            Patient.objects.filter(
-                first_name="Jordan",
-                last_name="Kim",
-                medications__name="Lisinopril",
-                allergies__substance="Penicillin",
-                visits__vitals__blood_pressure="128/82",
-            ).exists()
+            any(
+                vital.blood_pressure == "128/82"
+                for visit in jordan.visits.all()
+                for vital in visit.vitals.all()
+            )
         )

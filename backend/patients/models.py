@@ -1,15 +1,16 @@
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+from security.fields import EncryptedCharField, EncryptedDateField, EncryptedTextField
 
 
 class Patient(models.Model):
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
-    date_of_birth = models.DateField(null=True, blank=True)
-    phone = models.CharField(max_length=20, blank=True)
-    primary_language = models.CharField(max_length=100, blank=True)
-    notes = models.TextField(blank=True)
+    date_of_birth = EncryptedDateField(null=True, blank=True)
+    phone = EncryptedCharField(max_length=20, blank=True)
+    primary_language = EncryptedCharField(max_length=100, blank=True)
+    notes = EncryptedTextField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -28,8 +29,8 @@ class Visit(models.Model):
         on_delete=models.SET_NULL,
     )
     visit_date = models.DateField()
-    primary_care_physician = models.CharField(max_length=150)
-    staff_assigned = models.CharField(max_length=150, blank=True)
+    primary_care_physician = EncryptedCharField(max_length=150)
+    staff_assigned = EncryptedCharField(max_length=150, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -48,7 +49,7 @@ class VisitNote(models.Model):
         related_name="visit_notes",
         on_delete=models.CASCADE,
     )
-    content = models.TextField()
+    content = EncryptedTextField()
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -70,7 +71,7 @@ class Vital(models.Model):
     visit = models.ForeignKey(Visit, related_name="vitals", on_delete=models.CASCADE)
     height = models.DecimalField(max_digits=5, decimal_places=2)
     weight = models.DecimalField(max_digits=6, decimal_places=2)
-    blood_pressure = models.CharField(max_length=20)
+    blood_pressure = EncryptedCharField(max_length=20)
     heart_rate = models.PositiveIntegerField()
     temperature = models.DecimalField(max_digits=5, decimal_places=2)
     collected_at = models.DateTimeField(default=timezone.now)
@@ -94,9 +95,9 @@ class Medication(models.Model):
         on_delete=models.SET_NULL,
     )
     name = models.CharField(max_length=150)
-    dosage = models.CharField(max_length=100)
-    frequency = models.CharField(max_length=100)
-    duration = models.CharField(max_length=100, blank=True)
+    dosage = EncryptedCharField(max_length=100)
+    frequency = EncryptedCharField(max_length=100)
+    duration = EncryptedCharField(max_length=100, blank=True)
     is_active = models.BooleanField(default=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -131,9 +132,9 @@ class Diagnosis(models.Model):
         default=Status.CURRENT,
     )
     date_diagnosed = models.DateField()
-    diagnosis_code = models.CharField(max_length=30, blank=True)
-    provider_name = models.CharField(max_length=150, blank=True)
-    resolution_date = models.DateField(null=True, blank=True)
+    diagnosis_code = EncryptedCharField(max_length=30, blank=True)
+    provider_name = EncryptedCharField(max_length=150, blank=True)
+    resolution_date = EncryptedDateField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -156,7 +157,7 @@ class DiagnosisNote(models.Model):
         related_name="diagnosis_notes",
         on_delete=models.CASCADE,
     )
-    content = models.TextField()
+    content = EncryptedTextField()
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -184,7 +185,7 @@ class Allergy(models.Model):
         on_delete=models.SET_NULL,
     )
     substance = models.CharField(max_length=150)
-    reaction = models.CharField(max_length=255, blank=True)
+    reaction = EncryptedCharField(max_length=255, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
