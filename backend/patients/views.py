@@ -1,17 +1,36 @@
 from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404
+from rest_framework.exceptions import ValidationError
 from rest_framework import generics
-from .models import Allergy, Medication, Patient, Visit, Vital
-from .permissions import ViewModelPermissions
+from .models import Allergy, Diagnosis, DiagnosisNote, Medication, Patient, Visit, VisitNote, Vital
+from .permissions import DiagnosisNotePermissions, PatientRecordMutationPermissions, ViewModelPermissions, VisitNotePermissions
 from .serializers import (
     AllergySerializer,
+    DiagnosisNoteSerializer,
+    DiagnosisSerializer,
     MedicationSerializer,
     PatientDetailSerializer,
     PatientSerializer,
     VitalSerializer,
+    VisitNoteSerializer,
     VisitSerializer,
+    order_diagnoses,
 )
+
+
+class StatusOnlyUpdateMixin:
+    update_allowed_fields = set()
+
+    def update(self, request, *args, **kwargs):
+        submitted_fields = set(request.data.keys())
+        if not submitted_fields or submitted_fields - self.update_allowed_fields:
+            raise ValidationError(
+                "Only status fields can be changed after a record is created."
+            )
+
+        kwargs["partial"] = True
+        return super().update(request, *args, **kwargs)
 
 
 class PatientListCreateView(generics.ListCreateAPIView):
@@ -36,8 +55,17 @@ class PatientListCreateView(generics.ListCreateAPIView):
 class PatientDetailView(generics.RetrieveAPIView):
     queryset = Patient.objects.prefetch_related(
         "medications",
+        "medications__created_by",
+        "diagnoses",
+        "diagnoses__created_by",
+        "diagnoses__note_entries",
+        "diagnoses__note_entries__author",
         "allergies",
+        "allergies__created_by",
         "visits",
+        "visits__created_by",
+        "visits__note_entries",
+        "visits__note_entries__author",
         "visits__vitals",
     )
     serializer_class = PatientDetailSerializer
@@ -71,20 +99,46 @@ class PatientVisitListCreateView(generics.ListCreateAPIView):
     permission_classes = [ViewModelPermissions]
 
     def get_queryset(self):
-        return Visit.objects.filter(patient_id=self.kwargs["patient_id"]).order_by(
-            "-visit_date",
-            "-created_at",
+        return (
+            Visit.objects.filter(patient_id=self.kwargs["patient_id"])
+            .select_related("created_by")
+            .order_by("-visit_date", "-created_at")
         )
 
     def perform_create(self, serializer):
         patient = get_object_or_404(Patient, id=self.kwargs["patient_id"])
-        serializer.save(patient=patient)
+        serializer.save(patient=patient, created_by=self.request.user)
 
 
-class VisitDetailView(generics.RetrieveUpdateAPIView):
-    queryset = Visit.objects.all()
+class VisitDetailView(StatusOnlyUpdateMixin, generics.RetrieveUpdateDestroyAPIView):
+    queryset = Visit.objects.select_related("created_by")
     serializer_class = VisitSerializer
-    permission_classes = [ViewModelPermissions]
+    permission_classes = [PatientRecordMutationPermissions]
+
+
+class VisitNoteListCreateView(generics.ListCreateAPIView):
+    serializer_class = VisitNoteSerializer
+    permission_classes = [VisitNotePermissions]
+
+    def get_queryset(self):
+        return (
+            VisitNote.objects.filter(visit_id=self.kwargs["visit_id"])
+            .select_related("author")
+            .order_by("created_at", "id")
+        )
+
+    def perform_create(self, serializer):
+        visit = get_object_or_404(Visit, id=self.kwargs["visit_id"])
+        if VisitNote.objects.filter(visit=visit, author=self.request.user).exists():
+            raise ValidationError("You already have a note for this visit.")
+
+        serializer.save(visit=visit, author=self.request.user)
+
+
+class VisitNoteDetailView(generics.RetrieveUpdateAPIView):
+    queryset = VisitNote.objects.select_related("author", "visit")
+    serializer_class = VisitNoteSerializer
+    permission_classes = [VisitNotePermissions]
 
 
 class PatientMedicationListCreateView(generics.ListCreateAPIView):
@@ -92,19 +146,68 @@ class PatientMedicationListCreateView(generics.ListCreateAPIView):
     permission_classes = [ViewModelPermissions]
 
     def get_queryset(self):
-        return Medication.objects.filter(patient_id=self.kwargs["patient_id"]).order_by(
-            "name",
+        return (
+            Medication.objects.filter(patient_id=self.kwargs["patient_id"])
+            .select_related("created_by")
+            .order_by("-is_active", "name")
         )
 
     def perform_create(self, serializer):
         patient = get_object_or_404(Patient, id=self.kwargs["patient_id"])
-        serializer.save(patient=patient)
+        serializer.save(patient=patient, created_by=self.request.user)
 
 
-class MedicationDetailView(generics.RetrieveUpdateAPIView):
-    queryset = Medication.objects.all()
+class MedicationDetailView(StatusOnlyUpdateMixin, generics.RetrieveUpdateDestroyAPIView):
+    queryset = Medication.objects.select_related("created_by")
     serializer_class = MedicationSerializer
+    permission_classes = [PatientRecordMutationPermissions]
+    update_allowed_fields = {"is_active"}
+
+
+class PatientDiagnosisListCreateView(generics.ListCreateAPIView):
+    serializer_class = DiagnosisSerializer
     permission_classes = [ViewModelPermissions]
+
+    def get_queryset(self):
+        return order_diagnoses(
+            Diagnosis.objects.filter(patient_id=self.kwargs["patient_id"]).select_related("created_by")
+        )
+
+    def perform_create(self, serializer):
+        patient = get_object_or_404(Patient, id=self.kwargs["patient_id"])
+        serializer.save(patient=patient, created_by=self.request.user)
+
+
+class DiagnosisDetailView(StatusOnlyUpdateMixin, generics.RetrieveUpdateDestroyAPIView):
+    queryset = Diagnosis.objects.select_related("created_by")
+    serializer_class = DiagnosisSerializer
+    permission_classes = [PatientRecordMutationPermissions]
+    update_allowed_fields = {"status"}
+
+
+class DiagnosisNoteListCreateView(generics.ListCreateAPIView):
+    serializer_class = DiagnosisNoteSerializer
+    permission_classes = [DiagnosisNotePermissions]
+
+    def get_queryset(self):
+        return (
+            DiagnosisNote.objects.filter(diagnosis_id=self.kwargs["diagnosis_id"])
+            .select_related("author")
+            .order_by("created_at", "id")
+        )
+
+    def perform_create(self, serializer):
+        diagnosis = get_object_or_404(Diagnosis, id=self.kwargs["diagnosis_id"])
+        if DiagnosisNote.objects.filter(diagnosis=diagnosis, author=self.request.user).exists():
+            raise ValidationError("You already have a note for this diagnosis.")
+
+        serializer.save(diagnosis=diagnosis, author=self.request.user)
+
+
+class DiagnosisNoteDetailView(generics.RetrieveUpdateAPIView):
+    queryset = DiagnosisNote.objects.select_related("author", "diagnosis")
+    serializer_class = DiagnosisNoteSerializer
+    permission_classes = [DiagnosisNotePermissions]
 
 
 class PatientAllergyListCreateView(generics.ListCreateAPIView):
@@ -112,19 +215,21 @@ class PatientAllergyListCreateView(generics.ListCreateAPIView):
     permission_classes = [ViewModelPermissions]
 
     def get_queryset(self):
-        return Allergy.objects.filter(patient_id=self.kwargs["patient_id"]).order_by(
-            "substance",
+        return (
+            Allergy.objects.filter(patient_id=self.kwargs["patient_id"])
+            .select_related("created_by")
+            .order_by("substance")
         )
 
     def perform_create(self, serializer):
         patient = get_object_or_404(Patient, id=self.kwargs["patient_id"])
-        serializer.save(patient=patient)
+        serializer.save(patient=patient, created_by=self.request.user)
 
 
-class AllergyDetailView(generics.RetrieveUpdateAPIView):
-    queryset = Allergy.objects.all()
+class AllergyDetailView(StatusOnlyUpdateMixin, generics.RetrieveUpdateDestroyAPIView):
+    queryset = Allergy.objects.select_related("created_by")
     serializer_class = AllergySerializer
-    permission_classes = [ViewModelPermissions]
+    permission_classes = [PatientRecordMutationPermissions]
 
 
 class VisitVitalListCreateView(generics.ListCreateAPIView):

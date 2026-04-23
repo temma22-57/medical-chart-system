@@ -1,10 +1,15 @@
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.management import call_command
 from django.urls import reverse
 from rest_framework import status
+from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
+from accounts.mfa import get_profile
+from accounts.models import MfaLoginChallenge
 from patients.models import Allergy, Medication, Patient, Visit, Vital
 
 
@@ -27,6 +32,71 @@ class AuthApiTests(APITestCase):
         self.assertIn("token", response.data)
         self.assertEqual(response.data["user"]["roles"], ["Doctor"])
         self.assertFalse(response.data["mfa_required"])
+        self.assertIn("warning", response.data)
+
+    def test_user_with_email_gets_mfa_by_email(self):
+        user = get_user_model().objects.create_user(
+            username="doctor",
+            password="doctorpass",
+            email="doctor@example.com",
+        )
+        doctor_group = Group.objects.create(name="Doctor")
+        user.groups.add(doctor_group)
+
+        with patch("accounts.mfa.deliver_email_code") as send_email:
+            response = self.client.post(
+                reverse("auth-login"),
+                {"username": "doctor", "password": "doctorpass"},
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["mfa_required"])
+        self.assertEqual(response.data["next_step"], "verify")
+        self.assertEqual(response.data["selected_method"]["type"], "email")
+        self.assertNotIn("token", response.data)
+        send_email.assert_called_once()
+
+    def test_correct_mfa_code_completes_login(self):
+        user = get_user_model().objects.create_user(
+            username="doctor",
+            password="doctorpass",
+            email="doctor@example.com",
+        )
+        doctor_group = Group.objects.create(name="Doctor")
+        user.groups.add(doctor_group)
+        captured = {}
+
+        def capture_email_code(_user, code):
+            captured["code"] = code
+
+        with patch("accounts.mfa.deliver_email_code", side_effect=capture_email_code):
+            login_response = self.client.post(
+                reverse("auth-login"),
+                {"username": "doctor", "password": "doctorpass"},
+                format="json",
+            )
+
+        verify_response = self.client.post(
+            reverse("auth-mfa-verify"),
+            {
+                "challenge_id": login_response.data["challenge_id"],
+                "code": captured["code"],
+            },
+            format="json",
+        )
+
+        self.assertEqual(verify_response.status_code, status.HTTP_200_OK)
+        self.assertFalse(verify_response.data["mfa_required"])
+        self.assertIn("token", verify_response.data)
+        self.assertEqual(verify_response.data["user"]["roles"], ["Doctor"])
+        self.assertTrue(Token.objects.filter(user=user).exists())
+        self.assertTrue(
+            MfaLoginChallenge.objects.filter(
+                challenge_id=login_response.data["challenge_id"],
+                used_at__isnull=False,
+            ).exists()
+        )
 
     def test_login_rejects_invalid_credentials(self):
         get_user_model().objects.create_user(
@@ -48,6 +118,52 @@ class AuthApiTests(APITestCase):
         response = self.client.get(reverse("auth-me"))
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_patient_card_order_preference_is_user_specific_and_validated(self):
+        doctor = get_user_model().objects.create_user(
+            username="doctor",
+            password="doctorpass",
+        )
+        nurse = get_user_model().objects.create_user(
+            username="nurse",
+            password="nursepass",
+        )
+
+        self.client.force_authenticate(user=doctor)
+        default_response = self.client.get(reverse("patient-card-order-preference"))
+
+        self.assertEqual(default_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            default_response.data["card_order"],
+            ["medications", "diagnoses", "allergies", "visits"],
+        )
+
+        custom_order = ["visits", "medications", "allergies", "diagnoses"]
+        update_response = self.client.patch(
+            reverse("patient-card-order-preference"),
+            {"card_order": custom_order},
+            format="json",
+        )
+
+        self.assertEqual(update_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(update_response.data["card_order"], custom_order)
+        self.assertEqual(get_profile(doctor).patient_card_order, custom_order)
+
+        invalid_response = self.client.patch(
+            reverse("patient-card-order-preference"),
+            {"card_order": ["visits", "visits", "allergies", "diagnoses"]},
+            format="json",
+        )
+
+        self.assertEqual(invalid_response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        self.client.force_authenticate(user=nurse)
+        nurse_response = self.client.get(reverse("patient-card-order-preference"))
+
+        self.assertEqual(
+            nurse_response.data["card_order"],
+            ["medications", "diagnoses", "allergies", "visits"],
+        )
 
 
 class AdminUserManagementApiTests(APITestCase):

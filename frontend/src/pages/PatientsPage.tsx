@@ -133,7 +133,7 @@ export default function PatientsPage({ currentUser }: PatientsPageProps) {
               </Button>
             ) : (
               <Typography sx={{ color: "#d8f1e8", maxWidth: 260 }}>
-                Nurse access is read-only for patient records in this prototype.
+                Nurse access supports chart review and adding visits from a patient chart.
               </Typography>
             )}
           </Stack>

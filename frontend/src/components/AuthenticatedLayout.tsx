@@ -5,11 +5,15 @@ import type { CurrentUser } from "../features/auth/authService";
 
 interface AuthenticatedLayoutProps {
   currentUser: CurrentUser;
+  authNotice?: string;
+  onDismissAuthNotice: () => void;
   onLogout: () => void;
 }
 
 export default function AuthenticatedLayout({
   currentUser,
+  authNotice,
+  onDismissAuthNotice,
   onLogout,
 }: AuthenticatedLayoutProps) {
   const navigate = useNavigate();
@@ -165,6 +169,35 @@ export default function AuthenticatedLayout({
           </Stack>
         </Paper>
       </Box>
+      {authNotice ? (
+        <Paper
+          square
+          elevation={0}
+          sx={{
+            backgroundColor: "#fff7e6",
+            borderBottom: "1px solid #f2d28b",
+            color: "#6b4b00",
+            px: 2.5,
+            py: 1.5,
+            textAlign: "left",
+          }}
+        >
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+            sx={{ alignItems: { xs: "flex-start", sm: "center" }, justifyContent: "space-between" }}
+          >
+            <Typography>{authNotice}</Typography>
+            <Button
+              type="button"
+              onClick={onDismissAuthNotice}
+              sx={{ color: "#6b4b00", fontWeight: 700, minWidth: 0, p: 0, textTransform: "none" }}
+            >
+              Dismiss
+            </Button>
+          </Stack>
+        </Paper>
+      ) : null}
       <main style={{ padding: 20 }}>
         <Outlet />
       </main>

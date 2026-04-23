@@ -21,7 +21,7 @@ The project uses Django users, groups, and model permissions.
 - Unauthenticated users cannot access patient medical-record APIs.
 - `Admin` users can manage user accounts but cannot access patient medical-record APIs.
 - `Doctor` users can view, create, and update patient-domain records covered by the current permission setup.
-- `Nurse` users can view patient-domain records but do not have add/change permissions.
+- `Nurse` users can view patient-domain records, create visits, delete their own visits within the 8-hour cleanup window, add/change visit vitals, and add/change their own visit and diagnosis notes, but cannot create medications, allergies, or diagnoses.
 - Login is public.
 - Logout and current-user lookup require authentication.
 
@@ -102,6 +102,47 @@ Response:
   "last_name": "",
   "email": "",
   "roles": ["Doctor"]
+}
+```
+
+### GET `/api/auth/preferences/patient-card-order/`
+
+Returns the current user's saved patient detail table order. If the user has no saved preference, the backend returns the default order.
+
+Auth required: yes
+
+Response:
+
+```json
+{
+  "card_order": ["medications", "diagnoses", "allergies", "visits"]
+}
+```
+
+### PATCH `/api/auth/preferences/patient-card-order/`
+
+Updates the current user's patient detail table order.
+
+Auth required: yes
+
+Request:
+
+```json
+{
+  "card_order": ["visits", "medications", "allergies", "diagnoses"]
+}
+```
+
+Validation:
+
+- The order must include `medications`, `diagnoses`, `allergies`, and `visits`.
+- Each value must appear exactly once.
+
+Response:
+
+```json
+{
+  "card_order": ["visits", "medications", "allergies", "diagnoses"]
 }
 ```
 
@@ -317,7 +358,7 @@ Notes:
 
 ### GET `/api/patients/{id}/`
 
-Retrieves a patient detail record with related medications, allergies, visits, visit vitals, and latest vitals.
+Retrieves a patient detail record with related medications, diagnoses, allergies, visits, visit vitals, and latest vitals.
 
 Auth required: yes
 
@@ -343,6 +384,35 @@ Response:
       "name": "Lisinopril",
       "dosage": "10 mg",
       "frequency": "Daily",
+      "duration": "Ongoing",
+      "is_active": true,
+      "created_at": "2026-04-15T04:18:00Z",
+      "updated_at": "2026-04-15T04:18:00Z"
+    }
+  ],
+  "diagnoses": [
+    {
+      "id": 1,
+      "patient": 1,
+      "name": "Hypertension",
+      "status": "current",
+      "date_diagnosed": "2026-03-15",
+      "diagnosis_code": "I10",
+      "provider_name": "Dr. Morgan Patel",
+      "resolution_date": null,
+      "notes": [
+        {
+          "id": 1,
+          "diagnosis": 1,
+          "author": 2,
+          "author_username": "doctor",
+          "author_display_name": "doctor",
+          "content": "Monitor blood pressure and medication response.",
+          "can_edit": false,
+          "created_at": "2026-04-15T04:18:00Z",
+          "updated_at": "2026-04-15T04:18:00Z"
+        }
+      ],
       "created_at": "2026-04-15T04:18:00Z",
       "updated_at": "2026-04-15T04:18:00Z"
     }
@@ -364,7 +434,19 @@ Response:
       "visit_date": "2026-04-10",
       "primary_care_physician": "Dr. Morgan Patel",
       "staff_assigned": "Nurse Lee",
-      "notes": "Blood pressure check and medication review.",
+      "notes": [
+        {
+          "id": 1,
+          "visit": 1,
+          "author": 2,
+          "author_username": "doctor",
+          "author_display_name": "doctor",
+          "content": "Blood pressure check and medication review.",
+          "can_edit": false,
+          "created_at": "2026-04-15T04:18:00Z",
+          "updated_at": "2026-04-15T04:18:00Z"
+        }
+      ],
       "vitals": [
         {
           "id": 1,
@@ -452,11 +534,26 @@ Response:
   {
     "id": 1,
     "patient": 1,
+    "created_by": 2,
+    "created_by_username": "doctor",
     "visit_date": "2026-04-10",
     "primary_care_physician": "Dr. Morgan Patel",
     "staff_assigned": "Nurse Lee",
-    "notes": "Blood pressure check and medication review.",
+    "notes": [
+      {
+        "id": 1,
+        "visit": 1,
+        "author": 2,
+        "author_username": "doctor",
+        "author_display_name": "doctor",
+        "content": "Blood pressure check and medication review.",
+        "can_edit": true,
+        "created_at": "2026-04-15T04:18:00Z",
+        "updated_at": "2026-04-15T04:18:00Z"
+      }
+    ],
     "vitals": [],
+    "can_delete": true,
     "created_at": "2026-04-15T04:18:00Z",
     "updated_at": "2026-04-15T04:18:00Z"
   }
@@ -477,12 +574,15 @@ Request:
 {
   "visit_date": "2026-04-10",
   "primary_care_physician": "Dr. Morgan Patel",
-  "staff_assigned": "Nurse Lee",
-  "notes": "Blood pressure check and medication review."
+  "staff_assigned": "Nurse Lee"
 }
 ```
 
 Response: visit object.
+
+Notes:
+
+- Visit note text is stored through the visit-note endpoints, not on the visit record itself.
 
 ### GET `/api/visits/{id}/`
 
@@ -496,21 +596,116 @@ Response: visit object with nested `vitals`.
 
 ### PUT/PATCH `/api/visits/{id}/`
 
-Updates one visit.
+Visit records do not have a status field, so existing visit data cannot be changed through this endpoint after creation.
 
 Auth required: yes
 
 Permission required: `patients.change_visit`
 
+Requests containing visit fields return `400 Bad Request`.
+
+### DELETE `/api/visits/{id}/`
+
+Deletes one visit only when the authenticated user created the visit and the visit is less than 8 hours old.
+
+Auth required: yes
+
+Permission required: `patients.delete_visit`
+
+Failure cases return `403 Forbidden`.
+
+## Visit Note Endpoints
+
+Visit notes are authored records linked to both a visit and a user account. The current implementation allows one note per user per visit.
+
+### GET `/api/visits/{visit_id}/notes/`
+
+Lists notes for a visit.
+
+Auth required: yes
+
+Permission required: `patients.view_visitnote`
+
+Response:
+
+```json
+[
+  {
+    "id": 1,
+    "visit": 1,
+    "author": 2,
+    "author_username": "doctor",
+    "author_display_name": "doctor",
+    "content": "Blood pressure check and medication review.",
+    "can_edit": true,
+    "created_at": "2026-04-15T04:18:00Z",
+    "updated_at": "2026-04-15T04:18:00Z"
+  },
+  {
+    "id": 2,
+    "visit": 1,
+    "author": 3,
+    "author_username": "nurse",
+    "author_display_name": "nurse",
+    "content": "Reviewed home blood pressure log with patient.",
+    "can_edit": false,
+    "created_at": "2026-04-15T04:20:00Z",
+    "updated_at": "2026-04-15T04:20:00Z"
+  }
+]
+```
+
+### POST `/api/visits/{visit_id}/notes/`
+
+Creates the authenticated user's note for a visit.
+
+Auth required: yes
+
+Permission required: `patients.add_visitnote`
+
+Request:
+
+```json
+{
+  "content": "Patient reports taking medication as directed."
+}
+```
+
+Response: visit note object.
+
+Notes:
+
+- If the authenticated user already has a note for the visit, the endpoint returns `400 Bad Request`.
+
+### GET `/api/visit-notes/{id}/`
+
+Retrieves one visit note.
+
+Auth required: yes
+
+Permission required: `patients.view_visitnote`
+
+Response: visit note object.
+
+### PUT/PATCH `/api/visit-notes/{id}/`
+
+Updates one visit note.
+
+Auth required: yes
+
+Permission required: `patients.change_visitnote`
+
+Author rule: users can update only their own note. Updating another user's note returns `403 Forbidden`.
+
 Patch request:
 
 ```json
 {
-  "notes": "Updated visit notes."
+  "content": "Updated visit note text."
 }
 ```
 
-Response: updated visit object.
+Response: updated visit note object.
 
 ## Medication Endpoints
 
@@ -529,9 +724,14 @@ Response:
   {
     "id": 1,
     "patient": 1,
+    "created_by": 2,
+    "created_by_username": "doctor",
     "name": "Lisinopril",
     "dosage": "10 mg",
     "frequency": "Daily",
+    "duration": "Ongoing",
+    "is_active": true,
+    "can_delete": true,
     "created_at": "2026-04-15T04:18:00Z",
     "updated_at": "2026-04-15T04:18:00Z"
   }
@@ -552,7 +752,9 @@ Request:
 {
   "name": "Lisinopril",
   "dosage": "10 mg",
-  "frequency": "Daily"
+  "frequency": "Daily",
+  "duration": "Ongoing",
+  "is_active": true
 }
 ```
 
@@ -570,7 +772,7 @@ Response: medication object.
 
 ### PUT/PATCH `/api/medications/{id}/`
 
-Updates one medication.
+Updates one medication status. Existing medication details are immutable after creation.
 
 Auth required: yes
 
@@ -580,11 +782,218 @@ Patch request:
 
 ```json
 {
-  "frequency": "Twice daily"
+  "is_active": false
 }
 ```
 
 Response: updated medication object.
+
+Requests containing fields other than `is_active` return `400 Bad Request`.
+
+### DELETE `/api/medications/{id}/`
+
+Deletes one medication only when the authenticated user created it and it is less than 8 hours old.
+
+Auth required: yes
+
+Permission required: `patients.delete_medication`
+
+Failure cases return `403 Forbidden`.
+
+## Diagnosis Endpoints
+
+### GET `/api/patients/{patient_id}/diagnoses/`
+
+Lists diagnoses for a patient.
+
+Auth required: yes
+
+Permission required: `patients.view_diagnosis`
+
+Ordering: current diagnoses first, then newest diagnosis date first.
+
+Response:
+
+```json
+[
+  {
+    "id": 1,
+    "patient": 1,
+    "created_by": 2,
+    "created_by_username": "doctor",
+    "name": "Hypertension",
+    "status": "current",
+    "date_diagnosed": "2026-03-15",
+    "diagnosis_code": "I10",
+    "provider_name": "Dr. Morgan Patel",
+    "resolution_date": null,
+    "notes": [
+      {
+        "id": 1,
+        "diagnosis": 1,
+        "author": 2,
+        "author_username": "doctor",
+        "author_display_name": "doctor",
+        "content": "Monitor blood pressure and medication response.",
+        "can_edit": false,
+        "created_at": "2026-04-15T04:18:00Z",
+        "updated_at": "2026-04-15T04:18:00Z"
+      }
+    ],
+    "can_delete": true,
+    "created_at": "2026-04-15T04:18:00Z",
+    "updated_at": "2026-04-15T04:18:00Z"
+  }
+]
+```
+
+### POST `/api/patients/{patient_id}/diagnoses/`
+
+Creates a diagnosis for a patient.
+
+Auth required: yes
+
+Permission required: `patients.add_diagnosis`
+
+Request:
+
+```json
+{
+  "name": "Hypertension",
+  "status": "current",
+  "date_diagnosed": "2026-03-15",
+  "diagnosis_code": "I10",
+  "provider_name": "Dr. Morgan Patel",
+  "resolution_date": null
+}
+```
+
+Response: diagnosis object.
+
+### GET `/api/diagnoses/{id}/`
+
+Retrieves one diagnosis.
+
+Auth required: yes
+
+Permission required: `patients.view_diagnosis`
+
+Response: diagnosis object.
+
+### PUT/PATCH `/api/diagnoses/{id}/`
+
+Updates one diagnosis status. Existing diagnosis details are immutable after creation.
+
+Auth required: yes
+
+Permission required: `patients.change_diagnosis`
+
+Patch request:
+
+```json
+{
+  "status": "resolved"
+}
+```
+
+Response: updated diagnosis object.
+
+Requests containing fields other than `status` return `400 Bad Request`.
+
+### DELETE `/api/diagnoses/{id}/`
+
+Deletes one diagnosis only when the authenticated user created it and it is less than 8 hours old.
+
+Auth required: yes
+
+Permission required: `patients.delete_diagnosis`
+
+Failure cases return `403 Forbidden`.
+
+## Diagnosis Note Endpoints
+
+Diagnosis notes are authored records linked to both a diagnosis and a user account. The current implementation allows one note per user per diagnosis.
+
+### GET `/api/diagnoses/{diagnosis_id}/notes/`
+
+Lists notes for a diagnosis.
+
+Auth required: yes
+
+Permission required: `patients.view_diagnosisnote`
+
+Response:
+
+```json
+[
+  {
+    "id": 1,
+    "diagnosis": 1,
+    "author": 2,
+    "author_username": "doctor",
+    "author_display_name": "doctor",
+    "content": "Monitor blood pressure and medication response.",
+    "can_edit": true,
+    "created_at": "2026-04-15T04:18:00Z",
+    "updated_at": "2026-04-15T04:18:00Z"
+  }
+]
+```
+
+### POST `/api/diagnoses/{diagnosis_id}/notes/`
+
+Creates the authenticated user's note for a diagnosis.
+
+Auth required: yes
+
+Permission required: `patients.add_diagnosisnote`
+
+Request:
+
+```json
+{
+  "content": "Monitor blood pressure and medication response."
+}
+```
+
+Response: created diagnosis note object.
+
+Notes:
+
+- A user can create one note per diagnosis.
+- Creating a second note for the same diagnosis returns `400 Bad Request`.
+
+### GET `/api/diagnosis-notes/{id}/`
+
+Retrieves one diagnosis note.
+
+Auth required: yes
+
+Permission required: `patients.view_diagnosisnote`
+
+Response: diagnosis note object.
+
+### PUT/PATCH `/api/diagnosis-notes/{id}/`
+
+Updates the authenticated user's own diagnosis note.
+
+Auth required: yes
+
+Permission required: `patients.change_diagnosisnote`
+
+Request:
+
+```json
+{
+  "content": "Updated diagnosis note."
+}
+```
+
+Response: updated diagnosis note object.
+
+Notes:
+
+- Notes written by other users remain visible but cannot be edited by the current user.
 
 ## Allergy Endpoints
 
@@ -603,8 +1012,11 @@ Response:
   {
     "id": 1,
     "patient": 1,
+    "created_by": 2,
+    "created_by_username": "doctor",
     "substance": "Penicillin",
     "reaction": "Rash",
+    "can_delete": true,
     "created_at": "2026-04-15T04:18:00Z",
     "updated_at": "2026-04-15T04:18:00Z"
   }
@@ -642,21 +1054,23 @@ Response: allergy object.
 
 ### PUT/PATCH `/api/allergies/{id}/`
 
-Updates one allergy.
+Allergy records do not have a status field, so existing allergy data cannot be changed through this endpoint after creation.
 
 Auth required: yes
 
 Permission required: `patients.change_allergy`
 
-Patch request:
+Requests containing allergy fields return `400 Bad Request`.
 
-```json
-{
-  "reaction": "Severe rash"
-}
-```
+### DELETE `/api/allergies/{id}/`
 
-Response: updated allergy object.
+Deletes one allergy only when the authenticated user created it and it is less than 8 hours old.
+
+Auth required: yes
+
+Permission required: `patients.delete_allergy`
+
+Failure cases return `403 Forbidden`.
 
 ## Vital Endpoints
 
@@ -746,7 +1160,7 @@ Response: updated vital object.
 
 ## Current API Limitations
 
-- The current API does not expose delete endpoints for patient-domain records.
+- Patient-domain delete endpoints are exposed only for visits, medications, diagnoses, and allergies, and only for the creator within 8 hours of creation.
 - Patient detail is read-only; patient update is not currently exposed.
 - There is no audit-log API yet.
 - MFA is not implemented yet.

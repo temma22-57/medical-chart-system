@@ -1,10 +1,13 @@
+from datetime import timedelta
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
+from django.utils import timezone
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from .models import Allergy, Medication, Patient, Visit, Vital
+from .models import Allergy, Diagnosis, DiagnosisNote, Medication, Patient, Visit, VisitNote, Vital
 from .serializers import PatientDetailSerializer, PatientSerializer, VisitSerializer
 
 
@@ -47,6 +50,13 @@ class PatientRelationshipTests(APITestCase):
             name="Metformin",
             dosage="500 mg",
             frequency="Twice daily",
+            duration="90 days",
+        )
+        Diagnosis.objects.create(
+            patient=patient,
+            name="Type 2 diabetes",
+            status=Diagnosis.Status.CURRENT,
+            date_diagnosed="2026-04-12",
         )
         Allergy.objects.create(
             patient=patient,
@@ -58,10 +68,10 @@ class PatientRelationshipTests(APITestCase):
             visit_date="2026-04-12",
             primary_care_physician="Dr. Patel",
             staff_assigned="Nurse Lee",
-            notes="Routine follow-up.",
         )
 
         self.assertEqual(patient.medications.count(), 1)
+        self.assertEqual(patient.diagnoses.count(), 1)
         self.assertEqual(patient.allergies.count(), 1)
         self.assertEqual(patient.visits.count(), 1)
 
@@ -71,7 +81,6 @@ class PatientRelationshipTests(APITestCase):
             patient=patient,
             visit_date="2026-04-12",
             primary_care_physician="Dr. Patel",
-            notes="Routine follow-up.",
         )
         Vital.objects.create(
             visit=visit,
@@ -129,7 +138,6 @@ class PatientSerializerTests(APITestCase):
             patient=patient,
             visit_date="2026-04-13",
             primary_care_physician="Dr. Smith",
-            notes="Annual visit.",
         )
         Vital.objects.create(
             visit=visit,
@@ -151,7 +159,6 @@ class PatientSerializerTests(APITestCase):
             patient=patient,
             visit_date="2026-04-13",
             primary_care_physician="Dr. Smith",
-            notes="Annual visit.",
         )
         Vital.objects.create(
             visit=visit,
@@ -179,12 +186,25 @@ class PatientApiTests(APITestCase):
                 "view_visit",
                 "add_visit",
                 "change_visit",
+                "delete_visit",
+                "view_visitnote",
+                "add_visitnote",
+                "change_visitnote",
                 "view_medication",
                 "add_medication",
                 "change_medication",
+                "delete_medication",
+                "view_diagnosis",
+                "add_diagnosis",
+                "change_diagnosis",
+                "delete_diagnosis",
+                "view_diagnosisnote",
+                "add_diagnosisnote",
+                "change_diagnosisnote",
                 "view_allergy",
                 "add_allergy",
                 "change_allergy",
+                "delete_allergy",
                 "view_vital",
                 "add_vital",
                 "change_vital",
@@ -195,9 +215,20 @@ class PatientApiTests(APITestCase):
             [
                 "view_patient",
                 "view_visit",
+                "add_visit",
+                "delete_visit",
+                "view_visitnote",
+                "add_visitnote",
+                "change_visitnote",
                 "view_medication",
+                "view_diagnosis",
+                "view_diagnosisnote",
+                "add_diagnosisnote",
+                "change_diagnosisnote",
                 "view_allergy",
                 "view_vital",
+                "add_vital",
+                "change_vital",
             ],
         )
         self.admin = create_user_with_group("admin", "Admin")
@@ -214,13 +245,29 @@ class PatientApiTests(APITestCase):
             patient=patient,
             visit_date="2026-04-13",
             primary_care_physician="Dr. Smith",
-            notes="Admin should not see this.",
+        )
+        note = VisitNote.objects.create(
+            visit=visit,
+            author=self.doctor,
+            content="Admin should not see this.",
         )
         medication = Medication.objects.create(
             patient=patient,
             name="Lisinopril",
             dosage="10 mg",
             frequency="Daily",
+            duration="Ongoing",
+        )
+        diagnosis = Diagnosis.objects.create(
+            patient=patient,
+            name="Hypertension",
+            status=Diagnosis.Status.CURRENT,
+            date_diagnosed="2026-04-13",
+        )
+        diagnosis_note = DiagnosisNote.objects.create(
+            diagnosis=diagnosis,
+            author=self.doctor,
+            content="Admin should not see this diagnosis note.",
         )
         allergy = Allergy.objects.create(patient=patient, substance="Latex")
         vital = Vital.objects.create(
@@ -237,8 +284,14 @@ class PatientApiTests(APITestCase):
             reverse("patient-detail", kwargs={"pk": patient.id}),
             reverse("patient-visits", kwargs={"patient_id": patient.id}),
             reverse("visit-detail", kwargs={"pk": visit.id}),
+            reverse("visit-notes", kwargs={"visit_id": visit.id}),
+            reverse("visit-note-detail", kwargs={"pk": note.id}),
             reverse("patient-medications", kwargs={"patient_id": patient.id}),
             reverse("medication-detail", kwargs={"pk": medication.id}),
+            reverse("patient-diagnoses", kwargs={"patient_id": patient.id}),
+            reverse("diagnosis-detail", kwargs={"pk": diagnosis.id}),
+            reverse("diagnosis-notes", kwargs={"diagnosis_id": diagnosis.id}),
+            reverse("diagnosis-note-detail", kwargs={"pk": diagnosis_note.id}),
             reverse("patient-allergies", kwargs={"patient_id": patient.id}),
             reverse("allergy-detail", kwargs={"pk": allergy.id}),
             reverse("patient-latest-vitals", kwargs={"patient_id": patient.id}),
@@ -324,6 +377,19 @@ class PatientApiTests(APITestCase):
             name="Lisinopril",
             dosage="10 mg",
             frequency="Daily",
+            duration="Ongoing",
+        )
+        diagnosis = Diagnosis.objects.create(
+            patient=patient,
+            name="Hypertension",
+            status=Diagnosis.Status.CURRENT,
+            date_diagnosed="2026-04-10",
+            diagnosis_code="I10",
+        )
+        DiagnosisNote.objects.create(
+            diagnosis=diagnosis,
+            author=self.doctor,
+            content="Monitor blood pressure.",
         )
         Allergy.objects.create(patient=patient, substance="Latex", reaction="Hives")
         visit = Visit.objects.create(
@@ -331,7 +397,11 @@ class PatientApiTests(APITestCase):
             visit_date="2026-04-10",
             primary_care_physician="Dr. Nguyen",
             staff_assigned="MA Carter",
-            notes="Blood pressure check.",
+        )
+        VisitNote.objects.create(
+            visit=visit,
+            author=self.doctor,
+            content="Blood pressure check.",
         )
         Vital.objects.create(
             visit=visit,
@@ -349,8 +419,14 @@ class PatientApiTests(APITestCase):
         self.assertEqual(response.data["first_name"], "Jordan")
         self.assertIn("primary_language", response.data)
         self.assertEqual(response.data["medications"][0]["name"], "Lisinopril")
+        self.assertEqual(response.data["medications"][0]["duration"], "Ongoing")
+        self.assertTrue(response.data["medications"][0]["is_active"])
+        self.assertEqual(response.data["diagnoses"][0]["name"], "Hypertension")
+        self.assertEqual(response.data["diagnoses"][0]["diagnosis_code"], "I10")
+        self.assertEqual(response.data["diagnoses"][0]["notes"][0]["content"], "Monitor blood pressure.")
         self.assertEqual(response.data["allergies"][0]["substance"], "Latex")
         self.assertEqual(response.data["visits"][0]["primary_care_physician"], "Dr. Nguyen")
+        self.assertEqual(response.data["visits"][0]["notes"][0]["content"], "Blood pressure check.")
         self.assertEqual(response.data["visits"][0]["vitals"][0]["blood_pressure"], "118/76")
         self.assertEqual(response.data["latest_vitals"]["heart_rate"], 68)
 
@@ -361,7 +437,6 @@ class PatientApiTests(APITestCase):
             "visit_date": "2026-04-13",
             "primary_care_physician": "Dr. Smith",
             "staff_assigned": "Nurse Gomez",
-            "notes": "Medication review.",
         }
 
         response = self.client.post(
@@ -372,27 +447,188 @@ class PatientApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(patient.visits.count(), 1)
-        self.assertEqual(response.data["notes"], "Medication review.")
+        self.assertEqual(response.data["notes"], [])
 
-    def test_doctor_can_update_visit(self):
+    def test_doctor_cannot_update_visit_after_creation(self):
         self.client.force_authenticate(user=self.doctor)
         patient = Patient.objects.create(first_name="Casey", last_name="Rivera")
         visit = Visit.objects.create(
             patient=patient,
             visit_date="2026-04-13",
             primary_care_physician="Dr. Smith",
-            notes="Medication review.",
         )
 
         response = self.client.patch(
             reverse("visit-detail", kwargs={"pk": visit.id}),
-            {"notes": "Updated visit notes."},
+            {"staff_assigned": "Nurse Gomez"},
             format="json",
         )
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         visit.refresh_from_db()
-        self.assertEqual(visit.notes, "Updated visit notes.")
+        self.assertEqual(visit.staff_assigned, "")
+
+    def test_create_and_list_visit_notes_for_visit(self):
+        self.client.force_authenticate(user=self.doctor)
+        patient = Patient.objects.create(first_name="Casey", last_name="Rivera")
+        visit = Visit.objects.create(
+            patient=patient,
+            visit_date="2026-04-13",
+            primary_care_physician="Dr. Smith",
+        )
+        VisitNote.objects.create(
+            visit=visit,
+            author=self.nurse,
+            content="Nurse note remains visible.",
+        )
+
+        create_response = self.client.post(
+            reverse("visit-notes", kwargs={"visit_id": visit.id}),
+            {"content": "Doctor note for this visit."},
+            format="json",
+        )
+        list_response = self.client.get(reverse("visit-notes", kwargs={"visit_id": visit.id}))
+
+        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(visit.note_entries.count(), 2)
+        self.assertEqual(list_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(list_response.data[0]["content"], "Nurse note remains visible.")
+        self.assertEqual(list_response.data[1]["content"], "Doctor note for this visit.")
+        self.assertTrue(list_response.data[1]["can_edit"])
+        self.assertFalse(list_response.data[0]["can_edit"])
+
+    def test_user_can_update_only_own_visit_note(self):
+        self.client.force_authenticate(user=self.doctor)
+        patient = Patient.objects.create(first_name="Casey", last_name="Rivera")
+        visit = Visit.objects.create(
+            patient=patient,
+            visit_date="2026-04-13",
+            primary_care_physician="Dr. Smith",
+        )
+        own_note = VisitNote.objects.create(
+            visit=visit,
+            author=self.doctor,
+            content="Original doctor note.",
+        )
+        nurse_note = VisitNote.objects.create(
+            visit=visit,
+            author=self.nurse,
+            content="Original nurse note.",
+        )
+
+        own_response = self.client.patch(
+            reverse("visit-note-detail", kwargs={"pk": own_note.id}),
+            {"content": "Updated doctor note."},
+            format="json",
+        )
+        other_response = self.client.patch(
+            reverse("visit-note-detail", kwargs={"pk": nurse_note.id}),
+            {"content": "Doctor edit attempt."},
+            format="json",
+        )
+
+        self.assertEqual(own_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(other_response.status_code, status.HTTP_403_FORBIDDEN)
+        own_note.refresh_from_db()
+        nurse_note.refresh_from_db()
+        self.assertEqual(own_note.content, "Updated doctor note.")
+        self.assertEqual(nurse_note.content, "Original nurse note.")
+
+    def test_create_and_update_medication_status_only(self):
+        self.client.force_authenticate(user=self.doctor)
+        patient = Patient.objects.create(first_name="Casey", last_name="Rivera")
+        payload = {
+            "name": "Amoxicillin",
+            "dosage": "500 mg",
+            "frequency": "Twice daily",
+            "duration": "10 days",
+            "is_active": True,
+        }
+
+        create_response = self.client.post(
+            reverse("patient-medications", kwargs={"patient_id": patient.id}),
+            payload,
+            format="json",
+        )
+        medication_id = create_response.data["id"]
+        update_response = self.client.patch(
+            reverse("medication-detail", kwargs={"pk": medication_id}),
+            {"is_active": False},
+            format="json",
+        )
+        full_update_response = self.client.patch(
+            reverse("medication-detail", kwargs={"pk": medication_id}),
+            {"duration": "14 days"},
+            format="json",
+        )
+
+        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(create_response.data["duration"], "10 days")
+        self.assertTrue(create_response.data["is_active"])
+        self.assertEqual(update_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(update_response.data["duration"], "10 days")
+        self.assertFalse(update_response.data["is_active"])
+        self.assertEqual(full_update_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(patient.medications.get().duration, "10 days")
+        self.assertFalse(patient.medications.get().is_active)
+
+    def test_creator_can_delete_own_recent_medication(self):
+        self.client.force_authenticate(user=self.doctor)
+        patient = Patient.objects.create(first_name="Casey", last_name="Rivera")
+        medication = Medication.objects.create(
+            patient=patient,
+            created_by=self.doctor,
+            name="Amoxicillin",
+            dosage="500 mg",
+            frequency="Twice daily",
+        )
+
+        response = self.client.delete(reverse("medication-detail", kwargs={"pk": medication.id}))
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(Medication.objects.count(), 0)
+
+    def test_creator_cannot_delete_own_medication_after_eight_hours(self):
+        self.client.force_authenticate(user=self.doctor)
+        patient = Patient.objects.create(first_name="Casey", last_name="Rivera")
+        medication = Medication.objects.create(
+            patient=patient,
+            created_by=self.doctor,
+            name="Amoxicillin",
+            dosage="500 mg",
+            frequency="Twice daily",
+        )
+        Medication.objects.filter(id=medication.id).update(
+            created_at=timezone.now() - timedelta(hours=8, minutes=1)
+        )
+
+        response = self.client.delete(reverse("medication-detail", kwargs={"pk": medication.id}))
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(Medication.objects.count(), 1)
+
+    def test_non_creator_cannot_delete_recent_medication(self):
+        other_doctor = create_user_with_permissions(
+            "other-doctor",
+            [
+                "view_medication",
+                "delete_medication",
+            ],
+        )
+        self.client.force_authenticate(user=other_doctor)
+        patient = Patient.objects.create(first_name="Casey", last_name="Rivera")
+        medication = Medication.objects.create(
+            patient=patient,
+            created_by=self.doctor,
+            name="Amoxicillin",
+            dosage="500 mg",
+            frequency="Twice daily",
+        )
+
+        response = self.client.delete(reverse("medication-detail", kwargs={"pk": medication.id}))
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(Medication.objects.count(), 1)
 
     def test_nurse_cannot_update_visit(self):
         self.client.force_authenticate(user=self.nurse)
@@ -401,18 +637,146 @@ class PatientApiTests(APITestCase):
             patient=patient,
             visit_date="2026-04-13",
             primary_care_physician="Dr. Smith",
-            notes="Medication review.",
+            staff_assigned="Original staff",
         )
 
         response = self.client.patch(
             reverse("visit-detail", kwargs={"pk": visit.id}),
-            {"notes": "Nurse edit attempt."},
+            {"staff_assigned": "Nurse edit attempt."},
             format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         visit.refresh_from_db()
-        self.assertEqual(visit.notes, "Medication review.")
+        self.assertEqual(visit.staff_assigned, "Original staff")
+
+    def test_create_and_list_diagnoses_current_first(self):
+        self.client.force_authenticate(user=self.doctor)
+        patient = Patient.objects.create(first_name="Casey", last_name="Rivera")
+        Diagnosis.objects.create(
+            patient=patient,
+            name="Migraine",
+            status=Diagnosis.Status.RESOLVED,
+            date_diagnosed="2026-04-20",
+        )
+        payload = {
+            "name": "Hypertension",
+            "status": Diagnosis.Status.CURRENT,
+            "date_diagnosed": "2026-03-10",
+            "diagnosis_code": "I10",
+            "provider_name": "Dr. Smith",
+        }
+
+        create_response = self.client.post(
+            reverse("patient-diagnoses", kwargs={"patient_id": patient.id}),
+            payload,
+            format="json",
+        )
+        list_response = self.client.get(
+            reverse("patient-diagnoses", kwargs={"patient_id": patient.id})
+        )
+
+        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(patient.diagnoses.count(), 2)
+        self.assertEqual(list_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(list_response.data[0]["name"], "Hypertension")
+        self.assertEqual(list_response.data[0]["status"], Diagnosis.Status.CURRENT)
+        self.assertEqual(list_response.data[0]["notes"], [])
+
+    def test_create_and_list_diagnosis_notes_for_diagnosis(self):
+        self.client.force_authenticate(user=self.doctor)
+        patient = Patient.objects.create(first_name="Casey", last_name="Rivera")
+        diagnosis = Diagnosis.objects.create(
+            patient=patient,
+            name="Hypertension",
+            status=Diagnosis.Status.CURRENT,
+            date_diagnosed="2026-04-13",
+        )
+        DiagnosisNote.objects.create(
+            diagnosis=diagnosis,
+            author=self.nurse,
+            content="Nurse diagnosis note remains visible.",
+        )
+
+        create_response = self.client.post(
+            reverse("diagnosis-notes", kwargs={"diagnosis_id": diagnosis.id}),
+            {"content": "Doctor note for this diagnosis."},
+            format="json",
+        )
+        list_response = self.client.get(reverse("diagnosis-notes", kwargs={"diagnosis_id": diagnosis.id}))
+
+        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(diagnosis.note_entries.count(), 2)
+        self.assertEqual(list_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(list_response.data[0]["content"], "Nurse diagnosis note remains visible.")
+        self.assertEqual(list_response.data[1]["content"], "Doctor note for this diagnosis.")
+        self.assertTrue(list_response.data[1]["can_edit"])
+        self.assertFalse(list_response.data[0]["can_edit"])
+
+    def test_user_can_update_only_own_diagnosis_note(self):
+        self.client.force_authenticate(user=self.doctor)
+        patient = Patient.objects.create(first_name="Casey", last_name="Rivera")
+        diagnosis = Diagnosis.objects.create(
+            patient=patient,
+            name="Hypertension",
+            status=Diagnosis.Status.CURRENT,
+            date_diagnosed="2026-04-13",
+        )
+        own_note = DiagnosisNote.objects.create(
+            diagnosis=diagnosis,
+            author=self.doctor,
+            content="Original doctor diagnosis note.",
+        )
+        nurse_note = DiagnosisNote.objects.create(
+            diagnosis=diagnosis,
+            author=self.nurse,
+            content="Original nurse diagnosis note.",
+        )
+
+        own_response = self.client.patch(
+            reverse("diagnosis-note-detail", kwargs={"pk": own_note.id}),
+            {"content": "Updated doctor diagnosis note."},
+            format="json",
+        )
+        other_response = self.client.patch(
+            reverse("diagnosis-note-detail", kwargs={"pk": nurse_note.id}),
+            {"content": "Doctor edit attempt."},
+            format="json",
+        )
+
+        self.assertEqual(own_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(other_response.status_code, status.HTTP_403_FORBIDDEN)
+        own_note.refresh_from_db()
+        nurse_note.refresh_from_db()
+        self.assertEqual(own_note.content, "Updated doctor diagnosis note.")
+        self.assertEqual(nurse_note.content, "Original nurse diagnosis note.")
+
+    def test_doctor_can_update_only_diagnosis_status(self):
+        self.client.force_authenticate(user=self.doctor)
+        patient = Patient.objects.create(first_name="Casey", last_name="Rivera")
+        diagnosis = Diagnosis.objects.create(
+            patient=patient,
+            name="Asthma",
+            status=Diagnosis.Status.CURRENT,
+            date_diagnosed="2026-04-13",
+        )
+
+        response = self.client.patch(
+            reverse("diagnosis-detail", kwargs={"pk": diagnosis.id}),
+            {"status": Diagnosis.Status.RESOLVED},
+            format="json",
+        )
+        blocked_response = self.client.patch(
+            reverse("diagnosis-detail", kwargs={"pk": diagnosis.id}),
+            {"provider_name": "Dr. Changed"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(blocked_response.status_code, status.HTTP_400_BAD_REQUEST)
+        diagnosis.refresh_from_db()
+        self.assertEqual(diagnosis.status, Diagnosis.Status.RESOLVED)
+        self.assertEqual(diagnosis.provider_name, "")
 
     def test_create_vitals_for_visit(self):
         self.client.force_authenticate(user=self.doctor)
@@ -421,7 +785,6 @@ class PatientApiTests(APITestCase):
             patient=patient,
             visit_date="2026-04-13",
             primary_care_physician="Dr. Smith",
-            notes="Medication review.",
         )
         payload = {
             "height": "67.50",
@@ -449,13 +812,11 @@ class PatientApiTests(APITestCase):
             patient=patient,
             visit_date="2026-04-12",
             primary_care_physician="Dr. Smith",
-            notes="Older visit.",
         )
         newer_visit = Visit.objects.create(
             patient=patient,
             visit_date="2026-04-13",
             primary_care_physician="Dr. Smith",
-            notes="Newer visit.",
         )
         Vital.objects.create(
             visit=newer_visit,
@@ -493,14 +854,13 @@ class PatientApiTests(APITestCase):
         self.assertEqual(response.data["id"], latest_same_visit.id)
         self.assertEqual(response.data["blood_pressure"], "116/74")
 
-    def test_nurse_cannot_create_visit_for_patient(self):
+    def test_nurse_can_create_visit_for_patient(self):
         self.client.force_authenticate(user=self.nurse)
         patient = Patient.objects.create(first_name="Riley", last_name="Brooks")
         payload = {
             "visit_date": "2026-04-13",
             "primary_care_physician": "Dr. Smith",
             "staff_assigned": "Nurse Gomez",
-            "notes": "Restricted write attempt.",
         }
 
         response = self.client.post(
@@ -509,5 +869,123 @@ class PatientApiTests(APITestCase):
             format="json",
         )
 
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(patient.visits.count(), 1)
+        self.assertEqual(patient.visits.get().created_by, self.nurse)
+
+    def test_nurse_can_delete_own_recent_visit(self):
+        self.client.force_authenticate(user=self.nurse)
+        patient = Patient.objects.create(first_name="Riley", last_name="Brooks")
+        visit = Visit.objects.create(
+            patient=patient,
+            created_by=self.nurse,
+            visit_date="2026-04-13",
+            primary_care_physician="Dr. Smith",
+        )
+
+        response = self.client.delete(reverse("visit-detail", kwargs={"pk": visit.id}))
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(Visit.objects.count(), 0)
+
+    def test_nurse_cannot_delete_own_old_visit(self):
+        self.client.force_authenticate(user=self.nurse)
+        patient = Patient.objects.create(first_name="Riley", last_name="Brooks")
+        visit = Visit.objects.create(
+            patient=patient,
+            created_by=self.nurse,
+            visit_date="2026-04-13",
+            primary_care_physician="Dr. Smith",
+        )
+        Visit.objects.filter(id=visit.id).update(
+            created_at=timezone.now() - timedelta(hours=8, minutes=1)
+        )
+
+        response = self.client.delete(reverse("visit-detail", kwargs={"pk": visit.id}))
+
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertEqual(patient.visits.count(), 0)
+        self.assertEqual(Visit.objects.count(), 1)
+
+    def test_nurse_cannot_delete_another_users_recent_visit(self):
+        self.client.force_authenticate(user=self.nurse)
+        patient = Patient.objects.create(first_name="Riley", last_name="Brooks")
+        visit = Visit.objects.create(
+            patient=patient,
+            created_by=self.doctor,
+            visit_date="2026-04-13",
+            primary_care_physician="Dr. Smith",
+        )
+
+        response = self.client.delete(reverse("visit-detail", kwargs={"pk": visit.id}))
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(Visit.objects.count(), 1)
+
+    def test_nurse_can_create_and_update_vitals_for_visit(self):
+        self.client.force_authenticate(user=self.nurse)
+        patient = Patient.objects.create(first_name="Riley", last_name="Brooks")
+        visit = Visit.objects.create(
+            patient=patient,
+            created_by=self.nurse,
+            visit_date="2026-04-13",
+            primary_care_physician="Dr. Smith",
+        )
+
+        create_response = self.client.post(
+            reverse("visit-vitals", kwargs={"visit_id": visit.id}),
+            {
+                "height": "67.50",
+                "weight": "145.25",
+                "blood_pressure": "122/78",
+                "heart_rate": 74,
+                "temperature": "98.70",
+            },
+            format="json",
+        )
+        vital_id = create_response.data["id"]
+        update_response = self.client.patch(
+            reverse("vital-detail", kwargs={"pk": vital_id}),
+            {"blood_pressure": "124/80"},
+            format="json",
+        )
+
+        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(update_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(visit.vitals.count(), 1)
+        self.assertEqual(visit.vitals.get().blood_pressure, "124/80")
+
+    def test_nurse_cannot_create_medication_allergy_or_diagnosis(self):
+        self.client.force_authenticate(user=self.nurse)
+        patient = Patient.objects.create(first_name="Riley", last_name="Brooks")
+
+        medication_response = self.client.post(
+            reverse("patient-medications", kwargs={"patient_id": patient.id}),
+            {
+                "name": "Lisinopril",
+                "dosage": "10 mg",
+                "frequency": "Daily",
+                "is_active": True,
+            },
+            format="json",
+        )
+        allergy_response = self.client.post(
+            reverse("patient-allergies", kwargs={"patient_id": patient.id}),
+            {"substance": "Penicillin", "reaction": "Rash"},
+            format="json",
+        )
+        diagnosis_response = self.client.post(
+            reverse("patient-diagnoses", kwargs={"patient_id": patient.id}),
+            {
+                "name": "Hypertension",
+                "status": Diagnosis.Status.CURRENT,
+                "date_diagnosed": "2026-04-13",
+            },
+            format="json",
+        )
+
+        self.assertEqual(medication_response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(allergy_response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(diagnosis_response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(patient.medications.count(), 0)
+        self.assertEqual(patient.allergies.count(), 0)
+        self.assertEqual(patient.diagnoses.count(), 0)

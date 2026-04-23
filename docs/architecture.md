@@ -48,7 +48,7 @@ The Django backend owns:
 - Token-based login/logout/current-user endpoints.
 - Admin-only user-management endpoints.
 - Role-aware patient-domain API permissions.
-- Patient, visit, medication, allergy, and vital APIs.
+- Patient, visit, medication, diagnosis, allergy, and vital APIs.
 - Demo user and demo patient-data bootstrapping.
 
 Important backend files:
@@ -73,8 +73,9 @@ The React frontend owns:
 - Login page.
 - Authenticated layout with navigation and patient search.
 - Patient list and patient create page.
-- Patient detail dashboard with demographics, latest vitals, visits, medications, and allergies.
-- Add/edit flows for visits, medications, allergies, and adding vitals to visits.
+- Patient detail dashboard with demographics, latest vitals, visits, authored visit notes, medications, diagnoses, authored diagnosis notes, and allergies.
+- User-specific patient detail table ordering for medications, diagnoses, allergies, and visits.
+- Add/edit flows for visits, visit notes, medications, diagnoses, diagnosis notes, allergies, and adding vitals to visits.
 - API calls through an axios service layer.
 
 Important frontend files:
@@ -104,9 +105,13 @@ Current routes:
 /patients/:id
 /patients/:id/visits/new
 /patients/:id/visits/:recordId/edit
+/patients/:id/visits/:recordId/notes
 /patients/:id/visits/:recordId/vitals/new
 /patients/:id/medications/new
 /patients/:id/medications/:recordId/edit
+/patients/:id/diagnoses/new
+/patients/:id/diagnoses/:recordId/edit
+/patients/:id/diagnoses/:recordId/notes
 /patients/:id/allergies/new
 /patients/:id/allergies/:recordId/edit
 ```
@@ -136,7 +141,25 @@ PatientDetail page
   -> PatientDetailView
   -> PatientDetailSerializer
   -> PostgreSQL Patient + related records
-  -> JSON response with medications, allergies, visits, latest_vitals
+  -> JSON response with medications, diagnoses, diagnosis notes, allergies, visits, visit notes, latest_vitals
+```
+
+Patient detail table-order preference flow:
+
+```text
+PatientDetail page
+  -> GET /api/auth/preferences/patient-card-order/
+  -> AccountProfile.patient_card_order for the current user
+  -> Render Medications, Diagnoses, Allergies, and Visits cards in that order
+```
+
+When a user changes the order:
+
+```text
+Set Table Order dialog
+  -> PATCH /api/auth/preferences/patient-card-order/
+  -> Validate all four card keys are present exactly once
+  -> Save AccountProfile.patient_card_order
 ```
 
 ## Database Role
@@ -213,11 +236,18 @@ Current demo roles:
   - Cannot access patient records or related patient-domain endpoints.
 - `Doctor`
   - Can view, add, and change patient-domain records.
+  - Can delete visits, medications, diagnoses, and allergies only when they created the record less than 8 hours ago.
 - `Nurse`
   - Can view patient-domain records.
-  - Cannot add or change restricted patient-domain records.
+  - Can create visits from the patient chart.
+  - Can delete visits they created less than 8 hours ago.
+  - Can add and change visit vitals.
+  - Can add and change only their own visit and diagnosis notes.
+  - Cannot add medications, allergies, or diagnoses.
 
 The frontend routes Admin users to `/admin/users` and hides patient navigation/search for that role. The backend also enforces the separation: Admin-only user-management endpoints require the `Admin` group, and patient-domain permissions explicitly reject Admin users.
+
+Main patient-related table rows are mostly immutable after creation. The patient chart removes general edit actions, exposes inline status updates for medication active/inactive state and diagnosis status, and shows delete actions only when the API reports the record is eligible. The backend enforces the same policy by accepting only status-field updates on medication and diagnosis detail endpoints and by requiring `created_by` plus a server-side 8-hour age check for deletes.
 
 The backend does not currently implement MFA, audit logging, or a full enterprise permission matrix.
 
@@ -244,8 +274,10 @@ npm run lint
 ## Current Limitations
 
 - No patient update endpoint is exposed.
-- Delete endpoints are not exposed for patient-domain records.
+- Delete endpoints for visits, medications, diagnoses, and allergies are limited to the creator within 8 hours of creation.
 - MFA is represented only by `mfa_required: false` in login responses.
 - Audit logging is not implemented yet.
 - Visit staff attribution is stored as text, not linked to user accounts.
+- Visit notes are linked to user accounts, with one note per user per visit.
+- Diagnosis notes are linked to user accounts, with one note per user per diagnosis.
 - CORS is open in development settings.

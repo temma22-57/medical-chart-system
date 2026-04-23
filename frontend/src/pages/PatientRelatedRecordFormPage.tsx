@@ -6,6 +6,7 @@ import {
   Card,
   CardContent,
   Chip,
+  MenuItem,
   Paper,
   Stack,
   TextField,
@@ -13,16 +14,26 @@ import {
 } from "@mui/material";
 import {
   createAllergy,
+  createDiagnosis,
   createMedication,
+  createVital,
   createVisit,
   getPatient,
   updateAllergy,
+  updateDiagnosis,
   updateMedication,
   updateVisit,
 } from "../features/patients/patientService";
-import type { Allergy, Medication, PatientDetail, Visit } from "../features/patients/patientService";
+import type {
+  Allergy,
+  Diagnosis,
+  Medication,
+  PatientDetail,
+  VitalPayload,
+  Visit,
+} from "../features/patients/patientService";
 
-type RecordType = "visits" | "medications" | "allergies";
+type RecordType = "visits" | "medications" | "diagnoses" | "allergies";
 type FormValues = Record<string, string>;
 
 interface PatientRelatedRecordFormPageProps {
@@ -35,12 +46,21 @@ const fieldLabels: Record<RecordType, Record<string, string>> = {
     visit_date: "Visit date",
     primary_care_physician: "Primary care physician",
     staff_assigned: "Staff assigned",
-    notes: "Notes",
   },
   medications: {
     name: "Name",
     dosage: "Dosage",
     frequency: "Frequency",
+    duration: "Duration",
+    is_active: "Status",
+  },
+  diagnoses: {
+    name: "Name",
+    status: "Status",
+    date_diagnosed: "Date diagnosed",
+    diagnosis_code: "Diagnosis code",
+    provider_name: "Provider",
+    resolution_date: "Resolution date",
   },
   allergies: {
     substance: "Substance",
@@ -53,12 +73,26 @@ const initialValues: Record<RecordType, FormValues> = {
     visit_date: "",
     primary_care_physician: "",
     staff_assigned: "",
-    notes: "",
+    height: "",
+    weight: "",
+    blood_pressure: "",
+    heart_rate: "",
+    temperature: "",
   },
   medications: {
     name: "",
     dosage: "",
     frequency: "",
+    duration: "",
+    is_active: "true",
+  },
+  diagnoses: {
+    name: "",
+    status: "current",
+    date_diagnosed: "",
+    diagnosis_code: "",
+    provider_name: "",
+    resolution_date: "",
   },
   allergies: {
     substance: "",
@@ -75,17 +109,20 @@ function getRecord(patient: PatientDetail, recordType: RecordType, recordId: num
     return patient.medications.find((record) => record.id === recordId);
   }
 
+  if (recordType === "diagnoses") {
+    return patient.diagnoses.find((record) => record.id === recordId);
+  }
+
   return patient.allergies.find((record) => record.id === recordId);
 }
 
-function valuesFromRecord(recordType: RecordType, record: Visit | Medication | Allergy): FormValues {
+function valuesFromRecord(recordType: RecordType, record: Visit | Medication | Diagnosis | Allergy): FormValues {
   if (recordType === "visits") {
     const visit = record as Visit;
     return {
       visit_date: visit.visit_date,
       primary_care_physician: visit.primary_care_physician,
       staff_assigned: visit.staff_assigned || "",
-      notes: visit.notes,
     };
   }
 
@@ -95,6 +132,20 @@ function valuesFromRecord(recordType: RecordType, record: Visit | Medication | A
       name: medication.name,
       dosage: medication.dosage,
       frequency: medication.frequency,
+      duration: medication.duration || "",
+      is_active: medication.is_active ? "true" : "false",
+    };
+  }
+
+  if (recordType === "diagnoses") {
+    const diagnosis = record as Diagnosis;
+    return {
+      name: diagnosis.name,
+      status: diagnosis.status,
+      date_diagnosed: diagnosis.date_diagnosed,
+      diagnosis_code: diagnosis.diagnosis_code || "",
+      provider_name: diagnosis.provider_name || "",
+      resolution_date: diagnosis.resolution_date || "",
     };
   }
 
@@ -114,6 +165,10 @@ function titleFor(recordType: RecordType) {
     return "Medication";
   }
 
+  if (recordType === "diagnoses") {
+    return "Diagnosis";
+  }
+
   return "Allergy";
 }
 
@@ -123,10 +178,45 @@ function descriptionFor(recordType: RecordType) {
   }
 
   if (recordType === "medications") {
-    return "Document an active medication with dosage and frequency details.";
+    return "Document an active medication with dosage, frequency, and duration details.";
+  }
+
+  if (recordType === "diagnoses") {
+    return "Track diagnosis status, dates, provider details, and chart notes.";
   }
 
   return "Track allergy substances and any noted reactions in the patient record.";
+}
+
+const vitalFieldLabels: Record<keyof VitalPayload, string> = {
+  height: "Height",
+  weight: "Weight",
+  blood_pressure: "Blood pressure",
+  heart_rate: "Heart rate",
+  temperature: "Temperature",
+};
+
+const vitalFields = Object.entries(vitalFieldLabels) as [keyof VitalPayload, string][];
+
+function buildOptionalVitalPayload(values: FormValues): VitalPayload | null {
+  const vitalValues = vitalFields.map(([field]) => String(values[field] || "").trim());
+  const hasAnyVitals = vitalValues.some(Boolean);
+
+  if (!hasAnyVitals) {
+    return null;
+  }
+
+  if (!vitalValues.every(Boolean)) {
+    throw new Error("complete_vitals_required");
+  }
+
+  return {
+    height: values.height.trim(),
+    weight: values.weight.trim(),
+    blood_pressure: values.blood_pressure.trim(),
+    heart_rate: Number(values.heart_rate),
+    temperature: values.temperature.trim(),
+  };
 }
 
 export default function PatientRelatedRecordFormPage({
@@ -139,7 +229,7 @@ export default function PatientRelatedRecordFormPage({
   const relatedRecordId = Number(recordId);
   const [values, setValues] = useState<FormValues>(initialValues[recordType]);
   const [patient, setPatient] = useState<PatientDetail | null>(null);
-  const [currentRecord, setCurrentRecord] = useState<Visit | Medication | Allergy | null>(null);
+  const [currentRecord, setCurrentRecord] = useState<Visit | Medication | Diagnosis | Allergy | null>(null);
   const [loading, setLoading] = useState(mode === "edit");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -209,10 +299,14 @@ export default function PatientRelatedRecordFormPage({
           visit_date: values.visit_date,
           primary_care_physician: values.primary_care_physician,
           staff_assigned: values.staff_assigned,
-          notes: values.notes,
         };
         if (mode === "add") {
-          await createVisit(patientId, payload);
+          const visit = await createVisit(patientId, payload);
+          const vitalPayload = buildOptionalVitalPayload(values);
+
+          if (vitalPayload) {
+            await createVital(visit.id, vitalPayload);
+          }
         } else {
           await updateVisit(relatedRecordId, payload);
         }
@@ -221,11 +315,27 @@ export default function PatientRelatedRecordFormPage({
           name: values.name,
           dosage: values.dosage,
           frequency: values.frequency,
+          duration: values.duration,
+          is_active: values.is_active !== "false",
         };
         if (mode === "add") {
           await createMedication(patientId, payload);
         } else {
           await updateMedication(relatedRecordId, payload);
+        }
+      } else if (recordType === "diagnoses") {
+        const payload = {
+          name: values.name,
+          status: values.status,
+          date_diagnosed: values.date_diagnosed,
+          diagnosis_code: values.diagnosis_code,
+          provider_name: values.provider_name,
+          resolution_date: values.resolution_date || undefined,
+        };
+        if (mode === "add") {
+          await createDiagnosis(patientId, payload);
+        } else {
+          await updateDiagnosis(relatedRecordId, payload);
         }
       } else {
         const payload = {
@@ -240,8 +350,15 @@ export default function PatientRelatedRecordFormPage({
       }
 
       navigate(`/patients/${patientId}`);
-    } catch {
-      setError("Unable to save this record.");
+    } catch (caughtError) {
+      if (
+        caughtError instanceof Error &&
+        caughtError.message === "complete_vitals_required"
+      ) {
+        setError("If you enter any initial vitals, please complete all vitals fields.");
+      } else {
+        setError("Unable to save this record.");
+      }
     } finally {
       setSaving(false);
     }
@@ -253,7 +370,17 @@ export default function PatientRelatedRecordFormPage({
 
   const recordTitle = titleFor(recordType);
   const fields = Object.entries(fieldLabels[recordType]);
+  const optionalFields = [
+    "staff_assigned",
+    "reaction",
+    "duration",
+    "diagnosis_code",
+    "provider_name",
+    "resolution_date",
+    "notes",
+  ];
   const patientName = patient ? `${patient.first_name} ${patient.last_name}` : "Patient";
+  const showInitialVitalsFields = recordType === "visits" && mode === "add";
   const visitWithoutVitals =
     recordType === "visits" &&
     mode === "edit" &&
@@ -381,7 +508,7 @@ export default function PatientRelatedRecordFormPage({
                         label={label}
                         multiline
                         minRows={5}
-                        required
+                        required={!optionalFields.includes(field)}
                         value={values[field] || ""}
                         onChange={(event) => setValues({ ...values, [field]: event.target.value })}
                         sx={{
@@ -391,16 +518,58 @@ export default function PatientRelatedRecordFormPage({
                           },
                         }}
                       />
+                    ) : field === "status" ? (
+                      <TextField
+                        key={field}
+                        fullWidth
+                        select
+                        label={label}
+                        required
+                        value={values[field] || "current"}
+                        onChange={(event) => setValues({ ...values, [field]: event.target.value })}
+                        sx={{
+                          "& .MuiOutlinedInput-root": {
+                            backgroundColor: "#f8fcfa",
+                          },
+                        }}
+                      >
+                        <MenuItem value="current">Current</MenuItem>
+                        <MenuItem value="chronic">Chronic</MenuItem>
+                        <MenuItem value="remission">Remission</MenuItem>
+                        <MenuItem value="resolved">Resolved</MenuItem>
+                      </TextField>
+                    ) : field === "is_active" ? (
+                      <TextField
+                        key={field}
+                        fullWidth
+                        select
+                        label={label}
+                        required
+                        value={values[field] || "true"}
+                        onChange={(event) => setValues({ ...values, [field]: event.target.value })}
+                        sx={{
+                          "& .MuiOutlinedInput-root": {
+                            backgroundColor: "#f8fcfa",
+                          },
+                        }}
+                      >
+                        <MenuItem value="true">Active</MenuItem>
+                        <MenuItem value="false">Inactive</MenuItem>
+                      </TextField>
                     ) : (
                       <TextField
                         key={field}
                         fullWidth
                         label={label}
-                        type={field === "visit_date" ? "date" : "text"}
-                        required={!["staff_assigned", "reaction"].includes(field)}
+                        type={["visit_date", "date_diagnosed", "resolution_date"].includes(field) ? "date" : "text"}
+                        required={!optionalFields.includes(field)}
                         value={values[field] || ""}
                         onChange={(event) => setValues({ ...values, [field]: event.target.value })}
-                        slotProps={field === "visit_date" ? { inputLabel: { shrink: true } } : undefined}
+                        slotProps={
+                          ["visit_date", "date_diagnosed", "resolution_date"].includes(field)
+                            ? { inputLabel: { shrink: true } }
+                            : undefined
+                        }
                         sx={{
                           "& .MuiOutlinedInput-root": {
                             backgroundColor: "#f8fcfa",
@@ -410,6 +579,57 @@ export default function PatientRelatedRecordFormPage({
                     ),
                   )}
                 </Box>
+
+                {showInitialVitalsFields && (
+                  <Paper
+                    variant="outlined"
+                    sx={{
+                      backgroundColor: "rgba(248, 252, 250, 0.08)",
+                      borderColor: "#3a453b",
+                      p: 2,
+                    }}
+                  >
+                    <Stack spacing={2}>
+                      <Box>
+                        <Typography variant="h6" sx={{ color: "#f4f7f1", fontWeight: 700 }}>
+                          Initial Vitals
+                        </Typography>
+                        <Typography sx={{ color: "#c4ccbe", mt: 0.5 }}>
+                          Leave all vitals blank to create the visit without vitals, or complete every vitals field to save an initial entry.
+                        </Typography>
+                      </Box>
+                      <Box
+                        sx={{
+                          display: "grid",
+                          gap: 2,
+                          gridTemplateColumns: { xs: "1fr", md: "repeat(3, minmax(0, 1fr))" },
+                        }}
+                      >
+                        {vitalFields.map(([field, label]) => (
+                          <TextField
+                            key={field}
+                            fullWidth
+                            label={label}
+                            type={field === "blood_pressure" ? "text" : "number"}
+                            value={values[field] || ""}
+                            onChange={(event) => setValues({ ...values, [field]: event.target.value })}
+                            slotProps={{
+                              htmlInput: {
+                                min: field === "heart_rate" ? 0 : undefined,
+                                step: field === "heart_rate" ? 1 : 0.01,
+                              },
+                            }}
+                            sx={{
+                              "& .MuiOutlinedInput-root": {
+                                backgroundColor: "#f8fcfa",
+                              },
+                            }}
+                          />
+                        ))}
+                      </Box>
+                    </Stack>
+                  </Paper>
+                )}
 
                 <Stack
                   direction={{ xs: "column", sm: "row" }}

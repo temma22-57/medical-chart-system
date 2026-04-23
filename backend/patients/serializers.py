@@ -1,5 +1,30 @@
+from django.db.models import Case, IntegerField, Value, When
 from rest_framework import serializers
-from .models import Allergy, Medication, Patient, Visit, Vital
+from .models import Allergy, Diagnosis, DiagnosisNote, Medication, Patient, Visit, VisitNote, Vital
+from .permissions import can_delete_recent_own_record
+
+
+class RecordPolicyModelSerializer(serializers.ModelSerializer):
+    created_by = serializers.IntegerField(source="created_by_id", read_only=True)
+    created_by_username = serializers.SerializerMethodField()
+    can_delete = serializers.SerializerMethodField()
+
+    def get_created_by_username(self, obj):
+        return obj.created_by.username if obj.created_by_id else ""
+
+    def get_can_delete(self, obj):
+        request = self.context.get("request")
+        return bool(request and can_delete_recent_own_record(request.user, obj))
+
+
+def order_diagnoses(queryset):
+    return queryset.annotate(
+        current_sort=Case(
+            When(status=Diagnosis.Status.CURRENT, then=Value(0)),
+            default=Value(1),
+            output_field=IntegerField(),
+        )
+    ).order_by("current_sort", "-date_diagnosed", "name")
 
 
 class VitalSerializer(serializers.ModelSerializer):
@@ -23,52 +48,176 @@ class VitalSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "visit", "patient", "created_at", "updated_at"]
 
 
-class VisitSerializer(serializers.ModelSerializer):
+class VisitNoteSerializer(serializers.ModelSerializer):
+    author = serializers.IntegerField(source="author_id", read_only=True)
+    author_username = serializers.CharField(source="author.username", read_only=True)
+    author_display_name = serializers.SerializerMethodField()
+    can_edit = serializers.SerializerMethodField()
+
+    def get_author_display_name(self, note):
+        full_name = note.author.get_full_name()
+        return full_name or note.author.username
+
+    def get_can_edit(self, note):
+        request = self.context.get("request")
+        return bool(
+            request
+            and request.user
+            and request.user.is_authenticated
+            and note.author_id == request.user.id
+        )
+
+    class Meta:
+        model = VisitNote
+        fields = [
+            "id",
+            "visit",
+            "author",
+            "author_username",
+            "author_display_name",
+            "content",
+            "can_edit",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "visit",
+            "author",
+            "author_username",
+            "author_display_name",
+            "can_edit",
+            "created_at",
+            "updated_at",
+        ]
+
+
+class DiagnosisNoteSerializer(serializers.ModelSerializer):
+    author = serializers.IntegerField(source="author_id", read_only=True)
+    author_username = serializers.CharField(source="author.username", read_only=True)
+    author_display_name = serializers.SerializerMethodField()
+    can_edit = serializers.SerializerMethodField()
+
+    def get_author_display_name(self, note):
+        full_name = note.author.get_full_name()
+        return full_name or note.author.username
+
+    def get_can_edit(self, note):
+        request = self.context.get("request")
+        return bool(
+            request
+            and request.user
+            and request.user.is_authenticated
+            and note.author_id == request.user.id
+        )
+
+    class Meta:
+        model = DiagnosisNote
+        fields = [
+            "id",
+            "diagnosis",
+            "author",
+            "author_username",
+            "author_display_name",
+            "content",
+            "can_edit",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "diagnosis",
+            "author",
+            "author_username",
+            "author_display_name",
+            "can_edit",
+            "created_at",
+            "updated_at",
+        ]
+
+
+class VisitSerializer(RecordPolicyModelSerializer):
     vitals = VitalSerializer(many=True, read_only=True)
+    notes = VisitNoteSerializer(source="note_entries", many=True, read_only=True)
 
     class Meta:
         model = Visit
         fields = [
             "id",
             "patient",
+            "created_by",
+            "created_by_username",
             "visit_date",
             "primary_care_physician",
             "staff_assigned",
             "notes",
             "vitals",
+            "can_delete",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "patient", "created_at", "updated_at"]
+        read_only_fields = ["id", "patient", "created_by", "created_by_username", "can_delete", "created_at", "updated_at"]
 
 
-class MedicationSerializer(serializers.ModelSerializer):
+class MedicationSerializer(RecordPolicyModelSerializer):
     class Meta:
         model = Medication
         fields = [
             "id",
             "patient",
+            "created_by",
+            "created_by_username",
             "name",
             "dosage",
             "frequency",
+            "duration",
+            "is_active",
+            "can_delete",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "patient", "created_at", "updated_at"]
+        read_only_fields = ["id", "patient", "created_by", "created_by_username", "can_delete", "created_at", "updated_at"]
 
 
-class AllergySerializer(serializers.ModelSerializer):
+class DiagnosisSerializer(RecordPolicyModelSerializer):
+    notes = DiagnosisNoteSerializer(source="note_entries", many=True, read_only=True)
+
+    class Meta:
+        model = Diagnosis
+        fields = [
+            "id",
+            "patient",
+            "created_by",
+            "created_by_username",
+            "name",
+            "status",
+            "date_diagnosed",
+            "diagnosis_code",
+            "provider_name",
+            "resolution_date",
+            "notes",
+            "can_delete",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "patient", "created_by", "created_by_username", "can_delete", "created_at", "updated_at"]
+
+
+class AllergySerializer(RecordPolicyModelSerializer):
     class Meta:
         model = Allergy
         fields = [
             "id",
             "patient",
+            "created_by",
+            "created_by_username",
             "substance",
             "reaction",
+            "can_delete",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "patient", "created_at", "updated_at"]
+        read_only_fields = ["id", "patient", "created_by", "created_by_username", "can_delete", "created_at", "updated_at"]
 
 
 class PatientSerializer(serializers.ModelSerializer):
@@ -100,9 +249,18 @@ class PatientSerializer(serializers.ModelSerializer):
 
 class PatientDetailSerializer(serializers.ModelSerializer):
     medications = MedicationSerializer(many=True, read_only=True)
+    diagnoses = serializers.SerializerMethodField()
     allergies = AllergySerializer(many=True, read_only=True)
     visits = VisitSerializer(many=True, read_only=True)
     latest_vitals = serializers.SerializerMethodField()
+
+    def get_diagnoses(self, patient):
+        diagnoses = order_diagnoses(patient.diagnoses.all())
+        return DiagnosisSerializer(
+            diagnoses,
+            many=True,
+            context=self.context,
+        ).data
 
     def get_latest_vitals(self, patient):
         latest = (
@@ -130,6 +288,7 @@ class PatientDetailSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "medications",
+            "diagnoses",
             "allergies",
             "visits",
             "latest_vitals",

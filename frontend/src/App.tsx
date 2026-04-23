@@ -1,19 +1,22 @@
 import { useEffect, useState } from "react";
-import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
+import { Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import { getCurrentUser, hasAuthToken, logout } from "./features/auth/authService";
 import type { CurrentUser } from "./features/auth/authService";
 import AuthenticatedLayout from "./components/AuthenticatedLayout";
+import DiagnosisNotesPage from "./pages/DiagnosisNotesPage";
 import LoginPage from "./pages/LoginPage";
 import PatientCreatePage from "./pages/PatientCreatePage";
 import PatientDetail from "./pages/PatientDetail";
 import PatientRelatedRecordFormPage from "./pages/PatientRelatedRecordFormPage";
 import PatientsPage from "./pages/PatientsPage";
 import UserManagementPage from "./pages/UserManagementPage";
+import VisitNotesPage from "./pages/VisitNotesPage";
 import VisitVitalsFormPage from "./pages/VisitVitalsFormPage";
 
 function App() {
   const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [authNotice, setAuthNotice] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -39,11 +42,13 @@ function App() {
   const handleLogout = async () => {
     await logout();
     setCurrentUser(null);
+    setAuthNotice("");
     navigate("/login");
   };
 
-  const handleLogin = (user: CurrentUser) => {
+  const handleLogin = (user: CurrentUser, notice?: string) => {
     setCurrentUser(user);
+    setAuthNotice(notice || "");
     navigate(user.roles.includes("Admin") ? "/admin/users" : "/patients");
   };
 
@@ -68,7 +73,12 @@ function App() {
       <Route
         element={
           currentUser ? (
-            <AuthenticatedLayout currentUser={currentUser} onLogout={handleLogout} />
+            <AuthenticatedLayout
+              currentUser={currentUser}
+              authNotice={authNotice}
+              onDismissAuthNotice={() => setAuthNotice("")}
+              onLogout={handleLogout}
+            />
           ) : (
             <Navigate to="/login" replace />
           )
@@ -106,7 +116,7 @@ function App() {
         />
         <Route
           path="/patients/:id"
-          element={isAdmin ? <Navigate to="/admin/users" replace /> : <PatientDetail />}
+          element={isAdmin ? <Navigate to="/admin/users" replace /> : <PatientDetail currentUser={currentUser!} />}
         />
         <Route
           path="/patients/:id/visits/new"
@@ -120,11 +130,15 @@ function App() {
         />
         <Route
           path="/patients/:id/visits/:recordId/edit"
+          element={isAdmin ? <Navigate to="/admin/users" replace /> : <PatientDetailRedirect />}
+        />
+        <Route
+          path="/patients/:id/visits/:recordId/notes"
           element={
             isAdmin ? (
               <Navigate to="/admin/users" replace />
             ) : (
-              <PatientRelatedRecordFormPage recordType="visits" mode="edit" />
+              <VisitNotesPage currentUser={currentUser!} />
             )
           }
         />
@@ -137,6 +151,8 @@ function App() {
           element={
             isAdmin ? (
               <Navigate to="/admin/users" replace />
+            ) : !currentUser?.roles.includes("Doctor") ? (
+              <PatientDetailRedirect />
             ) : (
               <PatientRelatedRecordFormPage recordType="medications" mode="add" />
             )
@@ -144,11 +160,31 @@ function App() {
         />
         <Route
           path="/patients/:id/medications/:recordId/edit"
+          element={isAdmin ? <Navigate to="/admin/users" replace /> : <PatientDetailRedirect />}
+        />
+        <Route
+          path="/patients/:id/diagnoses/new"
+          element={
+            isAdmin ? (
+              <Navigate to="/admin/users" replace />
+            ) : !currentUser?.roles.includes("Doctor") ? (
+              <PatientDetailRedirect />
+            ) : (
+              <PatientRelatedRecordFormPage recordType="diagnoses" mode="add" />
+            )
+          }
+        />
+        <Route
+          path="/patients/:id/diagnoses/:recordId/edit"
+          element={isAdmin ? <Navigate to="/admin/users" replace /> : <PatientDetailRedirect />}
+        />
+        <Route
+          path="/patients/:id/diagnoses/:recordId/notes"
           element={
             isAdmin ? (
               <Navigate to="/admin/users" replace />
             ) : (
-              <PatientRelatedRecordFormPage recordType="medications" mode="edit" />
+              <DiagnosisNotesPage currentUser={currentUser!} />
             )
           }
         />
@@ -157,6 +193,8 @@ function App() {
           element={
             isAdmin ? (
               <Navigate to="/admin/users" replace />
+            ) : !currentUser?.roles.includes("Doctor") ? (
+              <PatientDetailRedirect />
             ) : (
               <PatientRelatedRecordFormPage recordType="allergies" mode="add" />
             )
@@ -164,13 +202,7 @@ function App() {
         />
         <Route
           path="/patients/:id/allergies/:recordId/edit"
-          element={
-            isAdmin ? (
-              <Navigate to="/admin/users" replace />
-            ) : (
-              <PatientRelatedRecordFormPage recordType="allergies" mode="edit" />
-            )
-          }
+          element={isAdmin ? <Navigate to="/admin/users" replace /> : <PatientDetailRedirect />}
         />
       </Route>
       <Route
@@ -184,6 +216,11 @@ function App() {
       />
     </Routes>
   );
+}
+
+function PatientDetailRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/patients/${id}`} replace />;
 }
 
 export default App;
