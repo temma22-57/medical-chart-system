@@ -2,6 +2,7 @@ import uuid
 
 from django.conf import settings
 from django.db import models
+from security.fields import EncryptedCharField
 
 
 class AccountProfile(models.Model):
@@ -12,7 +13,7 @@ class AccountProfile(models.Model):
         on_delete=models.CASCADE,
         related_name="account_profile",
     )
-    phone = models.CharField(max_length=32, blank=True)
+    phone = EncryptedCharField(max_length=32, blank=True)
     patient_card_order = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

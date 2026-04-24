@@ -56,6 +56,13 @@ def get_env_email_password(name, default=""):
     return "".join(password.split())
 
 
+def get_env_path(name, default=""):
+    value = get_env_str(name, default)
+    if not value:
+        return ""
+    return str((BASE_DIR.parent / value).resolve()) if not value.startswith("/") else value
+
+
 def get_env_int(name, default):
     value = os.environ.get(name)
     if value is None:
@@ -144,8 +151,23 @@ DATABASES = {
         'PASSWORD': os.environ.get('DB_PASSWORD', 'medical_chart_password'),
         'HOST': os.environ.get('DB_HOST', 'localhost'),
         'PORT': os.environ.get('DB_PORT', '5432'),
+        'OPTIONS': {},
     }
 }
+
+DB_SSLMODE = get_env_str("DB_SSLMODE", "disable")
+DB_SSLROOTCERT = get_env_path("DB_SSLROOTCERT", "")
+DB_SSLCERT = get_env_path("DB_SSLCERT", "")
+DB_SSLKEY = get_env_path("DB_SSLKEY", "")
+
+if DB_SSLMODE and DB_SSLMODE != "disable":
+    DATABASES["default"]["OPTIONS"]["sslmode"] = DB_SSLMODE
+    if DB_SSLROOTCERT:
+        DATABASES["default"]["OPTIONS"]["sslrootcert"] = DB_SSLROOTCERT
+    if DB_SSLCERT:
+        DATABASES["default"]["OPTIONS"]["sslcert"] = DB_SSLCERT
+    if DB_SSLKEY:
+        DATABASES["default"]["OPTIONS"]["sslkey"] = DB_SSLKEY
 
 
 # Password validation
@@ -207,6 +229,10 @@ EMAIL_PORT = get_env_int("EMAIL_PORT", 25)
 EMAIL_USE_TLS = get_env_bool("EMAIL_USE_TLS", False)
 EMAIL_HOST_USER = get_env_str("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = get_env_email_password("EMAIL_HOST_PASSWORD", "")
+DATA_ENCRYPTION_KEY = get_env_str(
+    "DATA_ENCRYPTION_KEY",
+    "fHnTrF_615zfYuMmbpy4NurSTKPU7Tv66azHQwVU99Y=",
+)
 
 MFA_CODE_TTL_MINUTES = get_env_int("MFA_CODE_TTL_MINUTES", 10)
 MFA_RESEND_THROTTLE_SECONDS = get_env_int("MFA_RESEND_THROTTLE_SECONDS", 30)

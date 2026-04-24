@@ -95,9 +95,9 @@ class Command(BaseCommand):
         jordan, _ = Patient.objects.update_or_create(
             first_name="Jordan",
             last_name="Kim",
-            date_of_birth="1984-02-14",
-            phone="555-0101",
             defaults={
+                "date_of_birth": "1984-02-14",
+                "phone": "555-0101",
                 "primary_language": "English",
                 "notes": "Demo patient with hypertension follow-up history.",
             },
@@ -105,9 +105,9 @@ class Command(BaseCommand):
         avery, _ = Patient.objects.update_or_create(
             first_name="Avery",
             last_name="Stone",
-            date_of_birth="1991-09-22",
-            phone="555-0102",
             defaults={
+                "date_of_birth": "1991-09-22",
+                "phone": "555-0102",
                 "primary_language": "Spanish",
                 "notes": "Demo patient with asthma and seasonal allergy history.",
             },
@@ -301,8 +301,8 @@ class Command(BaseCommand):
             visit, _ = Visit.objects.update_or_create(
                 patient=patient,
                 visit_date=visit_data["visit_date"],
-                primary_care_physician=visit_data["primary_care_physician"],
                 defaults={
+                    "primary_care_physician": visit_data["primary_care_physician"],
                     "staff_assigned": visit_data["staff_assigned"],
                     "created_by": creator,
                 },

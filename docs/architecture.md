@@ -232,7 +232,7 @@ The current auth foundation uses:
 Current demo roles:
 
 - `Admin`
-  - Can list, create, update, reset passwords for, and delete user accounts.
+  - Can list, create, update, reset passwords for, and delete user accounts, including editing account email addresses.
   - Cannot access patient records or related patient-domain endpoints.
 - `Doctor`
   - Can view, add, and change patient-domain records.

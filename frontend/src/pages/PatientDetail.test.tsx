@@ -102,7 +102,19 @@ describe("PatientDetail", () => {
               updated_at: "2026-04-13T17:00:00Z",
             },
           ],
-          vitals: [],
+          vitals: [
+            {
+              id: 6,
+              visit: 5,
+              patient: 7,
+              height: "67.50",
+              weight: "145.25",
+              blood_pressure: "122/78",
+              heart_rate: 74,
+              temperature: "98.70",
+              collected_at: "2026-04-13T16:30:00Z",
+            },
+          ],
         },
       ],
       latest_vitals: {
@@ -135,7 +147,7 @@ describe("PatientDetail", () => {
     expect(screen.getByText(/phone: 555-0100/i)).toBeInTheDocument();
     expect(screen.getByText(/primary language/i)).toBeInTheDocument();
     expect(screen.getByText("English")).toBeInTheDocument();
-    expect(screen.getByText("122/78")).toBeInTheDocument();
+    expect(screen.getAllByText("122/78")).toHaveLength(2);
     expect(screen.getByText("Hypertension")).toBeInTheDocument();
     expect(screen.getByText("Current")).toBeInTheDocument();
     expect(screen.getByText("I10")).toBeInTheDocument();
@@ -143,6 +155,12 @@ describe("PatientDetail", () => {
     expect(screen.getByText("Ongoing")).toBeInTheDocument();
     expect(screen.getByText("Active")).toBeInTheDocument();
     expect(screen.getByText("Penicillin")).toBeInTheDocument();
+    expect(
+      screen.getAllByText(
+        (_, element) =>
+          element?.textContent === "BP 122/78 | HR 74 | Temp 98.70 | Ht 67.50 | Wt 145.25",
+      ).length,
+    ).toBeGreaterThan(0);
     expect(screen.getByText("Medication review.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /set table order/i })).toBeInTheDocument();
   });
